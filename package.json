@@ -2,10 +2,12 @@
   "name": "drop-plugin-sdk-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Drop Plugin SDK monorepo containing @drop/plugin-sdk and @drop/plugin-cli",
+  "description": "Drop Plugin SDK monorepo containing @droposs/plugin-sdk and @droposs/plugin-cli",
   "scripts": {
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "publish:dry-run": "pnpm --filter @droposs/plugin-sdk --filter @droposs/plugin-cli publish --dry-run --access public --no-git-checks",
+    "publish:local": "pnpm --filter @droposs/plugin-sdk --filter @droposs/plugin-cli publish --access public --no-git-checks"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

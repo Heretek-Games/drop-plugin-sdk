@@ -1,4 +1,6 @@
 node_modules/
 dist/
 *.log
+*.dropplugin
+dist-package/
 .DS_Store

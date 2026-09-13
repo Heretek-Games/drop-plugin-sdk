@@ -3,20 +3,39 @@
  * contract changes incompatibly. Plugins declare the version they were built
  * against in `metadata.apiVersion`; mismatches are rejected at registration.
  */
-export const PLUGIN_API_VERSION = 1;
+export const PLUGIN_API_VERSION = 2;
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "ALL";
 
-export type PluginCapability =
+export type PluginTarget = "server" | "client";
+
+export type PluginCategory = "generic" | "metadata" | "storage" | "multiplayer";
+
+export type ServerCapability =
   | "routes"
   | "storage"
   | "websocket"
   | "events"
   | "network";
 
+export type ClientCapability =
+  | "ui:slot"
+  | "ui:play-action"
+  | "ui:context-menu"
+  | "ui:sidebar"
+  | "ui:topbar"
+  | "game:launch-hook"
+  | "game:fs"
+  | "game:scan"
+  | "client:storage"
+  | "client:ws"
+  | "system:sidecar";
+
+export type PluginCapability = ServerCapability | ClientCapability;
+
 /**
  * Trust tier. Only `"trusted"` is supported today: plugins run in-process with
- * the server's own privileges. `"sandboxed"` is reserved for a future isolated
+ * the server or client's own privileges. `"sandboxed"` is reserved for a future isolated
  * runtime and must be rejected until that runtime exists.
  */
 export type PluginTrust = "trusted" | "sandboxed";
@@ -29,6 +48,8 @@ export interface PluginMetadata {
   version: string;
   description?: string;
   author?: string;
+  homepage?: string;
+  license?: string;
   builtin?: boolean;
   /** Plugin API version the plugin was built against. */
   apiVersion?: number;
@@ -36,6 +57,8 @@ export interface PluginMetadata {
   trust?: PluginTrust;
   /** Declared storage schema version; drives `migrateStorage`. */
   storageVersion?: number;
+  category?: PluginCategory;
+  targets?: PluginTarget[];
   capabilities?: PluginCapability[];
   enabled?: boolean;
 }
@@ -56,7 +79,22 @@ export interface PluginManifest extends PluginMetadata {
    * Set `DROP_PLUGIN_REQUIRE_SIGNATURE=true` to reject unsigned bundles.
    */
   signature?: string;
+
+  // Universal v2 target declarations
+  server?: {
+    entry: string;
+    capabilities: ServerCapability[];
+    storageVersion?: number;
+  };
+  client?: {
+    entry: string;
+    css?: string;
+    capabilities: ClientCapability[];
+    slots?: Array<{ slot: UISlotName; component: string }>;
+  };
 }
+
+export type PluginManifestV2 = PluginManifest;
 
 export interface PluginStateRecord {
   enabled: boolean;
@@ -83,6 +121,13 @@ export interface PluginStorage {
   /** Declared/recorded schema version for `migrateStorage`. */
   getSchemaVersion(): Promise<number>;
   setSchemaVersion(version: number): Promise<void>;
+}
+
+export interface ClientPluginStorage {
+  get<T>(key: string): Promise<T | null>;
+  set<T>(key: string, value: T): Promise<void>;
+  delete(key: string): Promise<void>;
+  listKeys(): Promise<string[]>;
 }
 
 /** Caller identity + reply sink for a plugin WebSocket message. */
@@ -163,3 +208,188 @@ export interface ServerPlugin {
     storage: PluginStorage,
   ): Promise<void>;
 }
+
+// ==========================================
+// Client Plugin Architecture (Playnite-inspired)
+// ==========================================
+
+export type UISlotName =
+  | "game-detail:actions"
+  | "game-detail:panels"
+  | "game-detail:badges"
+  | "settings:tabs"
+  | "topbar:status"
+  | "sidebar:nav";
+
+export interface UISlotRegistration {
+  slot: UISlotName;
+  component: unknown;
+  order?: number;
+  label?: string;
+  icon?: string;
+}
+
+/**
+ * Playnite-inspired Play Action.
+ * Injected dynamically by plugins to offer alternative game startup modes
+ * (e.g. "Play Multiplayer", "Play Offline", "Launch with Reshade").
+ */
+export interface PlayAction {
+  id: string;
+  name: string;
+  icon?: string;
+  isDefault?: boolean;
+  execute: (context: LaunchContext) => Promise<void> | void;
+}
+
+/**
+ * Playnite-inspired Game Context Menu Item.
+ * Injected into right-click menus on game items across the library.
+ */
+export interface GameMenuItem {
+  id: string;
+  label: string;
+  icon?: string;
+  execute: (gameId: string) => Promise<void> | void;
+}
+
+/**
+ * Playnite-inspired Sidebar Item with optional real-time progress.
+ */
+export interface SidebarItem {
+  id: string;
+  title: string;
+  icon?: string;
+  type: "button" | "view";
+  progressValue?: number; // 0 to 100, 0 hides bar
+  activated?: () => void;
+  component?: unknown;
+}
+
+/**
+ * Playnite-inspired Top Bar Status Item.
+ */
+export interface TopBarItem {
+  id: string;
+  title: string;
+  icon?: string;
+  component?: unknown;
+  activated?: () => void;
+}
+
+/**
+ * Stages in the game launch pipeline.
+ * Pre-launch stages are cancelable with automatic reverse rollback.
+ */
+export type LaunchStage =
+  | "pre-launch:validate"
+  | "pre-launch:prepare"
+  | "pre-launch:stage"
+  | "pre-launch:network"
+  | "launch"
+  | "post-exit:cleanup"
+  | "post-exit:restore"
+  | "post-exit:sync";
+
+export interface LaunchContext {
+  gameId: string;
+  gameTitle: string;
+  gameDir: string;
+  actionId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface LaunchHook {
+  stage: LaunchStage;
+  order?: number;
+  execute: (ctx: LaunchContext) => Promise<void> | void;
+}
+
+/**
+ * Scoped filesystem access strictly confined to the active game directory.
+ * Path traversal (`..`) and symlink escapes outside the target root are rejected.
+ */
+export interface ScopedGameFs {
+  readFile(gameId: string, relativePath: string): Promise<Uint8Array>;
+  writeFile(
+    gameId: string,
+    relativePath: string,
+    data: Uint8Array | string,
+  ): Promise<void>;
+  backupFile(gameId: string, relativePath: string): Promise<string>;
+  restoreFile(gameId: string, relativePath: string): Promise<void>;
+  fileExists(gameId: string, relativePath: string): Promise<boolean>;
+  deleteFile(gameId: string, relativePath: string): Promise<void>;
+}
+
+export interface AntiCheatReport {
+  detected: boolean;
+  reason?: string;
+  binaries?: string[];
+}
+
+export interface ScopedGameScanner {
+  scanExecutables(
+    gameId: string,
+  ): Promise<Array<{ relativePath: string; sha256: string; size: number }>>;
+  checkAntiCheat(gameId: string): Promise<AntiCheatReport>;
+}
+
+export interface ClientPluginWebSocket {
+  send(channel: string, data: unknown): Promise<unknown>;
+  subscribe(channel: string, listener: (data: unknown) => void): () => void;
+}
+
+export interface ClientPluginContext {
+  id: string;
+  logger: PluginLogger;
+  storage: ClientPluginStorage;
+  registerSlot(
+    slot: UISlotName,
+    component: unknown,
+    options?: { order?: number; label?: string; icon?: string },
+  ): void;
+  registerPlayAction(
+    provider: (gameId: string) => Promise<PlayAction[]> | PlayAction[],
+  ): () => void;
+  registerGameMenuItem(item: GameMenuItem): () => void;
+  registerSidebarItem(item: SidebarItem): () => void;
+  registerTopBarItem(item: TopBarItem): () => void;
+  registerLaunchHook(hook: LaunchHook): () => void;
+  gameFs: ScopedGameFs;
+  gameScanner: ScopedGameScanner;
+  serverWs: ClientPluginWebSocket;
+}
+
+export interface ClientPlugin {
+  metadata?: PluginMetadata;
+  init(ctx: ClientPluginContext): Promise<void> | void;
+  teardown?(): Promise<void> | void;
+}
+
+export interface FullstackPlugin {
+  server?: ServerPlugin;
+  client?: ClientPlugin;
+}
+
+// Specialized Plugin Contracts (Playnite-inspired)
+export interface MetadataPlugin extends ClientPlugin {
+  getGameMetadata?(
+    gameId: string,
+    fingerprint: string,
+  ): Promise<Record<string, unknown> | null>;
+}
+
+export interface StoragePlugin extends ClientPlugin {
+  getDepotStatus?(
+    depotId: string,
+  ): Promise<Record<string, unknown> | null>;
+}
+
+export interface MultiplayerPlugin extends ClientPlugin {
+  getActiveRoom?(
+    gameId: string,
+  ): Promise<Record<string, unknown> | null>;
+}
+
+export interface GenericPlugin extends ClientPlugin {}

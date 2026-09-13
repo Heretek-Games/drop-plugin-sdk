@@ -1,7 +1,7 @@
 {
-  "name": "@drop/plugin-sdk",
+  "name": "@droposs/plugin-sdk",
   "version": "0.1.0",
-  "description": "Drop Plugin SDK contract, types, and mock testing harness",
+  "description": "Drop Plugin SDK contract, types, and mock testing harness for Drop OSS",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,6 +11,31 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Heretek-Games/drop-plugin-sdk.git",
+    "directory": "packages/plugin-sdk"
+  },
+  "homepage": "https://github.com/Heretek-Games/drop-plugin-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/Heretek-Games/drop-plugin-sdk/issues"
+  },
+  "keywords": [
+    "drop",
+    "drop-oss",
+    "droposs",
+    "drop-plugin",
+    "plugin-sdk",
+    "extensibility",
+    "gaming",
+    "playnite"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "node --test"

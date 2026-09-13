@@ -1,5 +1,5 @@
 import { createHash, createHmac } from "node:crypto";
-import { readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, realpath, stat, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 const MANIFEST_FILE = "drop-plugin.json";
@@ -27,7 +27,10 @@ export async function listFiles(root: string, prefix = ""): Promise<string[]> {
   return results.sort((a, b) => a.localeCompare(b));
 }
 
-export async function signPlugin(targetDir: string, signingKey?: string): Promise<{ fileCount: number; signed: boolean }> {
+export async function signPlugin(
+  targetDir: string,
+  signingKey?: string,
+): Promise<{ fileCount: number; signed: boolean }> {
   const resolvedPath = path.resolve(process.cwd(), targetDir);
   const bundleDir = await realpath(resolvedPath).catch(() => null);
   if (!bundleDir) {
@@ -36,11 +39,19 @@ export async function signPlugin(targetDir: string, signingKey?: string): Promis
 
   const manifestPath = path.join(bundleDir, MANIFEST_FILE);
   const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
-  const entry = manifest.entry ?? "index.js";
-  const entryPath = path.resolve(bundleDir, entry);
-  const entryBytes = await readFile(entryPath);
 
-  manifest.checksum = createHash("sha256").update(entryBytes).digest("hex");
+  // Identify primary entry (v1 or v2 server/client entry)
+  const entry =
+    manifest.entry ??
+    manifest.server?.entry ??
+    manifest.client?.entry ??
+    "index.js";
+  const entryPath = path.resolve(bundleDir, entry);
+  const entryExists = await stat(entryPath).catch(() => null);
+  if (entryExists) {
+    const entryBytes = await readFile(entryPath);
+    manifest.checksum = createHash("sha256").update(entryBytes).digest("hex");
+  }
 
   const files = await listFiles(bundleDir);
   const fileChecksums: Record<string, string> = {};
@@ -68,4 +79,54 @@ export async function signPlugin(targetDir: string, signingKey?: string): Promis
 
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   return { fileCount: files.length, signed: Boolean(key) };
+}
+
+export async function packPlugin(
+  targetDir: string,
+  outputDir?: string,
+): Promise<{ packagePath: string; id: string; version: string }> {
+  const resolvedPath = path.resolve(process.cwd(), targetDir);
+  const bundleDir = await realpath(resolvedPath).catch(() => null);
+  if (!bundleDir) {
+    throw new Error(`Directory not found: ${targetDir}`);
+  }
+
+  // Ensure bundle is signed and validated
+  await signPlugin(bundleDir);
+
+  const manifestPath = path.join(bundleDir, MANIFEST_FILE);
+  const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
+  const id = manifest.id;
+  const version = manifest.version;
+
+  if (!id || !version) {
+    throw new Error("Plugin manifest must specify 'id' and 'version'");
+  }
+
+  const outDir = outputDir
+    ? path.resolve(process.cwd(), outputDir)
+    : path.join(bundleDir, "dist-package");
+  await mkdir(outDir, { recursive: true });
+
+  const files = await listFiles(bundleDir);
+  const bundleMap: Record<string, string> = {};
+
+  for (const rel of files) {
+    const content = await readFile(path.join(bundleDir, rel));
+    bundleMap[rel] = content.toString("base64");
+  }
+
+  const packageObj = {
+    format: "dropplugin-v2",
+    id,
+    version,
+    manifest,
+    files: bundleMap,
+    packedAt: new Date().toISOString(),
+  };
+
+  const packagePath = path.join(outDir, `${id}-${version}.dropplugin`);
+  await writeFile(packagePath, JSON.stringify(packageObj, null, 2), "utf-8");
+
+  return { packagePath, id, version };
 }

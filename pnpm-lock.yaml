@@ -35,11 +35,11 @@ importers:
 
   templates/starter-plugin:
     dependencies:
-      '@drop/plugin-sdk':
+      '@droposs/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
     devDependencies:
-      '@drop/plugin-cli':
+      '@droposs/plugin-cli':
         specifier: workspace:*
         version: link:../../packages/plugin-cli
       '@types/node':

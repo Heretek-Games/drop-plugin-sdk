@@ -1,15 +1,42 @@
 {
-  "name": "@drop/plugin-cli",
+  "name": "@droposs/plugin-cli",
   "version": "0.1.0",
-  "description": "Drop Plugin build, test, and signing CLI",
+  "description": "Drop Plugin build, test, signing, and packaging CLI for Drop OSS",
   "type": "module",
   "bin": {
     "drop-plugin": "./bin/drop-plugin.js"
   },
   "main": "dist/signer.js",
   "types": "dist/signer.d.ts",
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Heretek-Games/drop-plugin-sdk.git",
+    "directory": "packages/plugin-cli"
+  },
+  "homepage": "https://github.com/Heretek-Games/drop-plugin-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/Heretek-Games/drop-plugin-sdk/issues"
+  },
+  "keywords": [
+    "drop",
+    "drop-oss",
+    "droposs",
+    "drop-plugin",
+    "plugin-cli",
+    "signer",
+    "packaging",
+    "playnite"
+  ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "node --test"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

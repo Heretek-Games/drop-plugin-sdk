@@ -4,29 +4,42 @@
   "version": "1.0.0",
   "description": "Scaffolded Drop plugin template",
   "author": "Heretek Games",
-  "apiVersion": 1,
+  "apiVersion": 2,
+  "targets": [
+    "server",
+    "client"
+  ],
   "trust": "trusted",
   "storageVersion": 1,
   "capabilities": [
     "routes",
     "storage",
-    "events"
+    "events",
+    "ui:play-action",
+    "game:launch-hook",
+    "client:storage"
   ],
-  "entry": "dist/index.js",
-  "checksum": "5f2ace3415445b9fcf6ad61169830708a288ce277741bd9a48b555aa329c4fb0",
+  "entry": "dist/src/index.js",
+  "clientEntry": "dist/src/client.js",
+  "checksum": "3adbe175e2b56fd0a061106fa54a84ca8340b4389e2ee3eebb1fb86cb73b0839",
   "files": {
     "dist/index.d.ts": "fd17f44bac27882bf1646ba690104fdf606bb035c0d406a377cfc7ca74080149",
     "dist/index.js": "5f2ace3415445b9fcf6ad61169830708a288ce277741bd9a48b555aa329c4fb0",
-    "dist/src/index.d.ts": "fd17f44bac27882bf1646ba690104fdf606bb035c0d406a377cfc7ca74080149",
-    "dist/src/index.js": "5f2ace3415445b9fcf6ad61169830708a288ce277741bd9a48b555aa329c4fb0",
+    "dist/src/client.d.ts": "f76d72fb375030ad445ad5ce2d10b47738a5ed5ba98a538e1fba599378aceb6c",
+    "dist/src/client.js": "14865ecfe306db2cb7c282b6302f9efac38deda1c135dd5d79fd38c91abfabf7",
+    "dist/src/index.d.ts": "167e3f46bfe7585ada9be15cbd6e8564aa1b060777a2c14f7abbe32f042d98a3",
+    "dist/src/index.js": "3adbe175e2b56fd0a061106fa54a84ca8340b4389e2ee3eebb1fb86cb73b0839",
+    "dist/test/client.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "dist/test/client.test.js": "e0be0c57466e53ce74eeb82b1df8793359540bc8080c44a197564f7888df5244",
     "dist/test/index.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
-    "dist/test/index.test.js": "62525abda21d1b22c1dc088888faf98474519f56db387f73f80b44a4146f4cc5",
-    "package.json": "712ff47d453f735a9680ada669c4eaf495ce201a809201eabf5d8df37e717dc5",
-    "src/index.ts": "a375fa0c3d7b9ba1ea0d1e1dd173038963d3815463c72cdce837960e444dfc2d",
+    "dist/test/index.test.js": "81cde18dd473f02ac8e389b1b79fbd46c9644241f8aaf1a276a49f3c71847135",
+    "package.json": "d033943de917bf9c6d57de04dfa56fcea9a9c71686961e1ea65225d279273772",
+    "src/client.ts": "bf13812a32639096fa3e8e6d9cb4fab11fa09e657ac321c7d40793d4d4169859",
+    "src/index.ts": "4e5e6e3b6e7fd802716d6908b512e0b6a151d1cb9f0a8773a38d2fb20437533e",
+    "test/client.test.ts": "8e732eb69f2f88b4ca0bcce3150653c0e8ac3453f8c2a97389a12f853fa7857a",
     "test/index.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
     "test/index.test.js": "62525abda21d1b22c1dc088888faf98474519f56db387f73f80b44a4146f4cc5",
-    "test/index.test.ts": "9d5b22b8416465ebe8444b8a551e2939f9a3e13305abe895ead14f3a62ecffc0",
+    "test/index.test.ts": "037a4746694c64f40947d691d6b52380662eeaf6e0bcbda6bb04d2cdc94c5f78",
     "tsconfig.json": "71d211ab33317fcc799e5498a660f5e1793cb7db08473d4923a320a5a3d6d043"
-  },
-  "signature": "2d57ecbb101b4242d6eeef6e3b70b6ebda2f12d0db9da40b18f1367581a7bfb8"
+  }
 }

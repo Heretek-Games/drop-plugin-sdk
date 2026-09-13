@@ -1,0 +1,274 @@
+import { MockPluginLogger } from "./mock.js";
+import type {
+  AntiCheatReport,
+  ClientCapability,
+  ClientPluginContext,
+  ClientPluginStorage,
+  ClientPluginWebSocket,
+  GameMenuItem,
+  LaunchContext,
+  LaunchHook,
+  PlayAction,
+  PluginLogger,
+  ScopedGameFs,
+  ScopedGameScanner,
+  SidebarItem,
+  TopBarItem,
+  UISlotName,
+  UISlotRegistration,
+} from "./types.js";
+
+export class MockClientPluginStorage implements ClientPluginStorage {
+  private store = new Map<string, any>();
+
+  async get<T>(key: string): Promise<T | null> {
+    return this.store.has(key)
+      ? JSON.parse(JSON.stringify(this.store.get(key)))
+      : null;
+  }
+
+  async set<T>(key: string, value: T): Promise<void> {
+    this.store.set(key, JSON.parse(JSON.stringify(value)));
+  }
+
+  async delete(key: string): Promise<void> {
+    this.store.delete(key);
+  }
+
+  async listKeys(): Promise<string[]> {
+    return Array.from(this.store.keys());
+  }
+}
+
+export class MockScopedGameFs implements ScopedGameFs {
+  public files = new Map<string, Uint8Array>();
+  public backups = new Map<string, { sha256: string; content: Uint8Array }>();
+
+  private makeKey(gameId: string, path: string): string {
+    return `${gameId}:${path.replace(/\\/g, "/")}`;
+  }
+
+  async readFile(gameId: string, relativePath: string): Promise<Uint8Array> {
+    const key = this.makeKey(gameId, relativePath);
+    const content = this.files.get(key);
+    if (!content) {
+      throw new Error(`File not found: ${relativePath}`);
+    }
+    return new Uint8Array(content);
+  }
+
+  async writeFile(
+    gameId: string,
+    relativePath: string,
+    data: Uint8Array | string,
+  ): Promise<void> {
+    const key = this.makeKey(gameId, relativePath);
+    const bytes =
+      typeof data === "string" ? new TextEncoder().encode(data) : data;
+    this.files.set(key, bytes);
+  }
+
+  async backupFile(gameId: string, relativePath: string): Promise<string> {
+    const key = this.makeKey(gameId, relativePath);
+    const content = this.files.get(key);
+    if (!content) {
+      throw new Error(`Cannot backup non-existent file: ${relativePath}`);
+    }
+    const mockHash = "mock-sha256-" + content.length;
+    this.backups.set(key, { sha256: mockHash, content: new Uint8Array(content) });
+    return mockHash;
+  }
+
+  async restoreFile(gameId: string, relativePath: string): Promise<void> {
+    const key = this.makeKey(gameId, relativePath);
+    const backup = this.backups.get(key);
+    if (!backup) {
+      throw new Error(`No backup found for: ${relativePath}`);
+    }
+    this.files.set(key, new Uint8Array(backup.content));
+  }
+
+  async fileExists(gameId: string, relativePath: string): Promise<boolean> {
+    const key = this.makeKey(gameId, relativePath);
+    return this.files.has(key);
+  }
+
+  async deleteFile(gameId: string, relativePath: string): Promise<void> {
+    const key = this.makeKey(gameId, relativePath);
+    this.files.delete(key);
+  }
+}
+
+export class MockScopedGameScanner implements ScopedGameScanner {
+  public mockExecutables: Array<{
+    relativePath: string;
+    sha256: string;
+    size: number;
+  }> = [];
+  public mockAntiCheat: AntiCheatReport = { detected: false };
+
+  async scanExecutables(
+    _gameId: string,
+  ): Promise<Array<{ relativePath: string; sha256: string; size: number }>> {
+    return [...this.mockExecutables];
+  }
+
+  async checkAntiCheat(_gameId: string): Promise<AntiCheatReport> {
+    return { ...this.mockAntiCheat };
+  }
+}
+
+export class MockClientPluginWebSocket implements ClientPluginWebSocket {
+  public sentMessages: Array<{ channel: string; data: unknown }> = [];
+  public subscribers = new Map<string, Set<(data: unknown) => void>>();
+
+  async send(channel: string, data: unknown): Promise<unknown> {
+    this.sentMessages.push({ channel, data });
+    return { ack: true };
+  }
+
+  subscribe(channel: string, listener: (data: unknown) => void): () => void {
+    if (!this.subscribers.has(channel)) {
+      this.subscribers.set(channel, new Set());
+    }
+    this.subscribers.get(channel)!.add(listener);
+    return () => {
+      this.subscribers.get(channel)?.delete(listener);
+    };
+  }
+
+  simulateServerMessage(channel: string, data: unknown): void {
+    const set = this.subscribers.get(channel);
+    if (set) {
+      for (const listener of set) {
+        listener(data);
+      }
+    }
+  }
+}
+
+export class MockClientPluginContext implements ClientPluginContext {
+  public id: string;
+  public logger: PluginLogger;
+  public storage: ClientPluginStorage;
+  public capabilities: Set<ClientCapability>;
+
+  public registeredSlots = new Map<UISlotName, UISlotRegistration[]>();
+  public playActionProviders: Array<
+    (gameId: string) => Promise<PlayAction[]> | PlayAction[]
+  > = [];
+  public gameMenuItems: GameMenuItem[] = [];
+  public sidebarItems: SidebarItem[] = [];
+  public topBarItems: TopBarItem[] = [];
+  public launchHooks: LaunchHook[] = [];
+
+  public gameFs: MockScopedGameFs;
+  public gameScanner: MockScopedGameScanner;
+  public serverWs: MockClientPluginWebSocket;
+
+  constructor(
+    id: string,
+    capabilities: ClientCapability[] = [
+      "ui:slot",
+      "ui:play-action",
+      "ui:context-menu",
+      "ui:sidebar",
+      "ui:topbar",
+      "game:launch-hook",
+      "game:fs",
+      "game:scan",
+      "client:storage",
+      "client:ws",
+    ],
+  ) {
+    this.id = id;
+    this.logger = new MockPluginLogger();
+    this.storage = new MockClientPluginStorage();
+    this.capabilities = new Set(capabilities);
+    this.gameFs = new MockScopedGameFs();
+    this.gameScanner = new MockScopedGameScanner();
+    this.serverWs = new MockClientPluginWebSocket();
+  }
+
+  registerSlot(
+    slot: UISlotName,
+    component: unknown,
+    options: { order?: number; label?: string; icon?: string } = {},
+  ): void {
+    this.assertCapability("ui:slot");
+    if (!this.registeredSlots.has(slot)) {
+      this.registeredSlots.set(slot, []);
+    }
+    this.registeredSlots.get(slot)!.push({
+      slot,
+      component,
+      order: options.order ?? 0,
+      label: options.label,
+      icon: options.icon,
+    });
+  }
+
+  registerPlayAction(
+    provider: (gameId: string) => Promise<PlayAction[]> | PlayAction[],
+  ): () => void {
+    this.assertCapability("ui:play-action");
+    this.playActionProviders.push(provider);
+    return () => {
+      const idx = this.playActionProviders.indexOf(provider);
+      if (idx !== -1) this.playActionProviders.splice(idx, 1);
+    };
+  }
+
+  registerGameMenuItem(item: GameMenuItem): () => void {
+    this.assertCapability("ui:context-menu");
+    this.gameMenuItems.push(item);
+    return () => {
+      const idx = this.gameMenuItems.indexOf(item);
+      if (idx !== -1) this.gameMenuItems.splice(idx, 1);
+    };
+  }
+
+  registerSidebarItem(item: SidebarItem): () => void {
+    this.assertCapability("ui:sidebar");
+    this.sidebarItems.push(item);
+    return () => {
+      const idx = this.sidebarItems.indexOf(item);
+      if (idx !== -1) this.sidebarItems.splice(idx, 1);
+    };
+  }
+
+  registerTopBarItem(item: TopBarItem): () => void {
+    this.assertCapability("ui:topbar");
+    this.topBarItems.push(item);
+    return () => {
+      const idx = this.topBarItems.indexOf(item);
+      if (idx !== -1) this.topBarItems.splice(idx, 1);
+    };
+  }
+
+  registerLaunchHook(hook: LaunchHook): () => void {
+    this.assertCapability("game:launch-hook");
+    this.launchHooks.push(hook);
+    return () => {
+      const idx = this.launchHooks.indexOf(hook);
+      if (idx !== -1) this.launchHooks.splice(idx, 1);
+    };
+  }
+
+  async resolvePlayActions(gameId: string): Promise<PlayAction[]> {
+    const actions: PlayAction[] = [];
+    for (const provider of this.playActionProviders) {
+      const result = await provider(gameId);
+      actions.push(...result);
+    }
+    return actions;
+  }
+
+  private assertCapability(cap: ClientCapability): void {
+    if (!this.capabilities.has(cap)) {
+      throw new Error(
+        `Client plugin '${this.id}' missing required capability '${cap}'`,
+      );
+    }
+  }
+}

@@ -3,17 +3,17 @@
   "version": "1.0.0",
   "description": "Drop starter plugin template",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",
     "test": "node --test dist/test/*.js",
     "sign": "drop-plugin sign ."
   },
   "dependencies": {
-    "@drop/plugin-sdk": "workspace:*"
+    "@droposs/plugin-sdk": "workspace:*"
   },
   "devDependencies": {
-    "@drop/plugin-cli": "workspace:*",
+    "@droposs/plugin-cli": "workspace:*",
     "typescript": "^5.7.0",
     "@types/node": "^22.0.0"
   },

@@ -1,16 +1,21 @@
-import type { PluginContext, ServerPlugin } from "@drop/plugin-sdk";
+import type { PluginContext, ServerPlugin } from "@droposs/plugin-sdk";
 
 export default class StarterPlugin implements ServerPlugin {
   metadata = {
     id: "starter-plugin",
     name: "Starter Plugin",
     version: "1.0.0",
-    apiVersion: 1,
-    capabilities: ["routes" as const, "storage" as const, "events" as const],
+    apiVersion: 2,
+    targets: ["server" as const, "client" as const],
+    capabilities: [
+      "routes" as const,
+      "storage" as const,
+      "events" as const,
+    ],
   };
 
   async init(ctx: PluginContext): Promise<void> {
-    ctx.logger.info("Initializing starter plugin...");
+    ctx.logger.info("Initializing starter plugin on server...");
 
     // Register REST endpoint
     ctx.registerRoute("GET", "/ping", async () => {
