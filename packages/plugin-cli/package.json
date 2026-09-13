@@ -1,0 +1,19 @@
+{
+  "name": "@drop/plugin-cli",
+  "version": "0.1.0",
+  "description": "Drop Plugin build, test, and signing CLI",
+  "type": "module",
+  "bin": {
+    "drop-plugin": "./bin/drop-plugin.js"
+  },
+  "main": "dist/signer.js",
+  "types": "dist/signer.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  },
+  "license": "MIT"
+}

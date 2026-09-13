@@ -1,0 +1,32 @@
+{
+  "id": "starter-plugin",
+  "name": "Starter Plugin",
+  "version": "1.0.0",
+  "description": "Scaffolded Drop plugin template",
+  "author": "Heretek Games",
+  "apiVersion": 1,
+  "trust": "trusted",
+  "storageVersion": 1,
+  "capabilities": [
+    "routes",
+    "storage",
+    "events"
+  ],
+  "entry": "dist/index.js",
+  "checksum": "5f2ace3415445b9fcf6ad61169830708a288ce277741bd9a48b555aa329c4fb0",
+  "files": {
+    "dist/index.d.ts": "fd17f44bac27882bf1646ba690104fdf606bb035c0d406a377cfc7ca74080149",
+    "dist/index.js": "5f2ace3415445b9fcf6ad61169830708a288ce277741bd9a48b555aa329c4fb0",
+    "dist/src/index.d.ts": "fd17f44bac27882bf1646ba690104fdf606bb035c0d406a377cfc7ca74080149",
+    "dist/src/index.js": "5f2ace3415445b9fcf6ad61169830708a288ce277741bd9a48b555aa329c4fb0",
+    "dist/test/index.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "dist/test/index.test.js": "62525abda21d1b22c1dc088888faf98474519f56db387f73f80b44a4146f4cc5",
+    "package.json": "712ff47d453f735a9680ada669c4eaf495ce201a809201eabf5d8df37e717dc5",
+    "src/index.ts": "a375fa0c3d7b9ba1ea0d1e1dd173038963d3815463c72cdce837960e444dfc2d",
+    "test/index.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "test/index.test.js": "62525abda21d1b22c1dc088888faf98474519f56db387f73f80b44a4146f4cc5",
+    "test/index.test.ts": "9d5b22b8416465ebe8444b8a551e2939f9a3e13305abe895ead14f3a62ecffc0",
+    "tsconfig.json": "71d211ab33317fcc799e5498a660f5e1793cb7db08473d4923a320a5a3d6d043"
+  },
+  "signature": "2d57ecbb101b4242d6eeef6e3b70b6ebda2f12d0db9da40b18f1367581a7bfb8"
+}

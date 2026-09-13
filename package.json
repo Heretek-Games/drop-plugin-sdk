@@ -1,0 +1,14 @@
+{
+  "name": "drop-plugin-sdk-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Drop Plugin SDK monorepo containing @drop/plugin-sdk and @drop/plugin-cli",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "prettier": "^3.5.0"
+  }
+}
