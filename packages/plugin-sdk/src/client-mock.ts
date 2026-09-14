@@ -333,6 +333,9 @@ export class MockClientPluginContext implements ClientPluginContext {
   }
 
   registerStoreScanner(scanner: StoreScanner): () => void {
+    if (!scanner || typeof scanner.id !== "string" || !scanner.id.trim()) {
+      throw new Error("Store scanner must have a valid non-empty id");
+    }
     this.assertCapability("client:library-scan");
     this.storeScanners.push(scanner);
     return () => {
@@ -342,6 +345,9 @@ export class MockClientPluginContext implements ClientPluginContext {
   }
 
   registerMetadataProvider(provider: MetadataProvider): () => void {
+    if (!provider || typeof provider.id !== "string" || !provider.id.trim()) {
+      throw new Error("Metadata provider must have a valid non-empty id");
+    }
     this.assertCapability("metadata:provider");
     this.metadataProviders.push(provider);
     return () => {

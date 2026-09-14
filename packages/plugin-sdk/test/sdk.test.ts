@@ -139,6 +139,52 @@ test("MockPluginContext registers metadata providers and payment gateways", () =
   });
   assert.ok(ctx.paymentGateways.has("stripe"));
 
+  // Duplicate registration throws
+  assert.throws(() => {
+    ctx.registerMetadataProvider({
+      id: "steamgriddb",
+      name: "Duplicate SteamGridDB",
+      search: async () => [],
+      getDetails: async () => null,
+    });
+  }, /Metadata provider 'steamgriddb' is already registered/);
+
+  assert.throws(() => {
+    ctx.registerPaymentGateway({
+      id: "stripe",
+      name: "Duplicate Stripe",
+      createPaymentIntent: async () => ({ intentId: "", status: "failed" }),
+      handleWebhook: async () => ({
+        orderId: "",
+        status: "failed",
+        transactionId: "",
+      }),
+    });
+  }, /Payment gateway 'stripe' is already registered/);
+
+  // Invalid ID throws
+  assert.throws(() => {
+    ctx.registerMetadataProvider({
+      id: "   ",
+      name: "Empty",
+      search: async () => [],
+      getDetails: async () => null,
+    });
+  }, /Metadata provider must have a valid non-empty id/);
+
+  assert.throws(() => {
+    ctx.registerPaymentGateway({
+      id: "",
+      name: "Empty",
+      createPaymentIntent: async () => ({ intentId: "", status: "failed" }),
+      handleWebhook: async () => ({
+        orderId: "",
+        status: "failed",
+        transactionId: "",
+      }),
+    });
+  }, /Payment gateway must have a valid non-empty id/);
+
   // Lacking capabilities throws
   const restricted = new MockPluginContext("restricted", ["routes"]);
   assert.throws(() => {
@@ -164,10 +210,19 @@ test("MockPluginContext registers metadata providers and payment gateways", () =
   }, /missing required capability 'commerce:payment'/);
 });
 
-test("MockClientPluginContext registers store scanners and enforces capability", async () => {
+test("MockClientPluginContext registers store scanners, overlay slots, and enforces capability", async () => {
   const ctx = new MockClientPluginContext("scanner-test", [
     "client:library-scan",
+    "ui:slot",
   ]);
+
+  // Test overlay slots
+  ctx.registerSlot("overlay:panel", { template: "<div>Overlay Panel</div>" });
+  ctx.registerSlot("overlay:quick-access", {
+    template: "<div>Quick Access</div>",
+  });
+  assert.equal(ctx.registeredSlots.get("overlay:panel")?.length, 1);
+  assert.equal(ctx.registeredSlots.get("overlay:quick-access")?.length, 1);
 
   const unregister = ctx.registerStoreScanner({
     id: "gog-scanner",
@@ -191,6 +246,16 @@ test("MockClientPluginContext registers store scanners and enforces capability",
 
   unregister();
   assert.equal(ctx.storeScanners.length, 0);
+
+  // Invalid ID throws
+  assert.throws(() => {
+    ctx.registerStoreScanner({
+      id: "",
+      name: "Invalid",
+      store: "gog",
+      scan: async () => [],
+    });
+  }, /Store scanner must have a valid non-empty id/);
 
   // Missing capability throws
   const restricted = new MockClientPluginContext("restricted-scanner", [

@@ -158,12 +158,28 @@ export class MockPluginContext implements PluginContext {
   public paymentGateways = new Map<string, PaymentGateway>();
 
   registerMetadataProvider(provider: MetadataProvider): void {
+    if (!provider || typeof provider.id !== "string" || !provider.id.trim()) {
+      throw new Error("Metadata provider must have a valid non-empty id");
+    }
     this.assertCapability("metadata:provider");
+    const existing = this.metadataProviders.get(provider.id);
+    if (existing && existing !== provider) {
+      throw new Error(
+        `Metadata provider '${provider.id}' is already registered`,
+      );
+    }
     this.metadataProviders.set(provider.id, provider);
   }
 
   registerPaymentGateway(gateway: PaymentGateway): void {
+    if (!gateway || typeof gateway.id !== "string" || !gateway.id.trim()) {
+      throw new Error("Payment gateway must have a valid non-empty id");
+    }
     this.assertCapability("commerce:payment");
+    const existing = this.paymentGateways.get(gateway.id);
+    if (existing && existing !== gateway) {
+      throw new Error(`Payment gateway '${gateway.id}' is already registered`);
+    }
     this.paymentGateways.set(gateway.id, gateway);
   }
 
