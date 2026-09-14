@@ -359,6 +359,18 @@ export interface ClientPluginContext {
   gameFs: ScopedGameFs;
   gameScanner: ScopedGameScanner;
   serverWs: ClientPluginWebSocket;
+  /**
+   * Call this plugin's own server-side REST routes through the desktop host.
+   *
+   * The Tauri webview cannot reach the Drop server directly (TLS/auth), so the
+   * host proxies the request and returns the decoded JSON response. `path` is
+   * relative to `/api/v1/plugins/<pluginId>` (e.g. `"/rooms"`).
+   */
+  serverRequest<T = unknown>(
+    method: HttpMethod,
+    path?: string,
+    body?: unknown,
+  ): Promise<T>;
 }
 
 export interface ClientPlugin {

@@ -6,6 +6,7 @@ import type {
   ClientPluginStorage,
   ClientPluginWebSocket,
   GameMenuItem,
+  HttpMethod,
   LaunchContext,
   LaunchHook,
   PlayAction,
@@ -147,6 +148,34 @@ export class MockClientPluginWebSocket implements ClientPluginWebSocket {
   }
 }
 
+export class MockClientServerRequest {
+  public calls: Array<{ method: HttpMethod; path: string; body?: unknown }> = [];
+  public responses = new Map<string, unknown>();
+  /** Value returned when no canned response is registered. */
+  public fallback: unknown = {};
+
+  private key(method: HttpMethod, path: string): string {
+    const clean = path.startsWith("/") ? path : `/${path}`;
+    return `${method.toUpperCase()} ${clean}`;
+  }
+
+  setResponse(method: HttpMethod, path: string, value: unknown): void {
+    this.responses.set(this.key(method, path), value);
+  }
+
+  async request<T = unknown>(
+    method: HttpMethod,
+    path = "",
+    body?: unknown,
+  ): Promise<T> {
+    this.calls.push({ method, path, body });
+    const value = this.responses.has(this.key(method, path))
+      ? this.responses.get(this.key(method, path))
+      : this.fallback;
+    return value as T;
+  }
+}
+
 export class MockClientPluginContext implements ClientPluginContext {
   public id: string;
   public logger: PluginLogger;
@@ -165,6 +194,7 @@ export class MockClientPluginContext implements ClientPluginContext {
   public gameFs: MockScopedGameFs;
   public gameScanner: MockScopedGameScanner;
   public serverWs: MockClientPluginWebSocket;
+  public serverRequestLog: MockClientServerRequest;
 
   constructor(
     id: string,
@@ -188,6 +218,7 @@ export class MockClientPluginContext implements ClientPluginContext {
     this.gameFs = new MockScopedGameFs();
     this.gameScanner = new MockScopedGameScanner();
     this.serverWs = new MockClientPluginWebSocket();
+    this.serverRequestLog = new MockClientServerRequest();
   }
 
   registerSlot(
@@ -253,6 +284,14 @@ export class MockClientPluginContext implements ClientPluginContext {
       const idx = this.launchHooks.indexOf(hook);
       if (idx !== -1) this.launchHooks.splice(idx, 1);
     };
+  }
+
+  async serverRequest<T = unknown>(
+    method: HttpMethod,
+    path = "",
+    body?: unknown,
+  ): Promise<T> {
+    return this.serverRequestLog.request<T>(method, path, body);
   }
 
   async resolvePlayActions(gameId: string): Promise<PlayAction[]> {
