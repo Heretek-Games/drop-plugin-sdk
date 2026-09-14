@@ -18,7 +18,8 @@ export type ServerCapability =
   | "events"
   | "network"
   | "metadata:provider"
-  | "commerce:payment";
+  | "commerce:payment"
+  | "cloudsave:provider";
 
 export type ClientCapability =
   | "ui:slot"
@@ -34,7 +35,8 @@ export type ClientCapability =
   | "system:sidecar"
   | "system:command"
   | "metadata:provider"
-  | "client:library-scan";
+  | "client:library-scan"
+  | "cloudsave:provider";
 
 export type PluginCapability = ServerCapability | ClientCapability;
 
@@ -231,6 +233,11 @@ export interface PluginContext {
    * Requires the `commerce:payment` capability.
    */
   registerPaymentGateway(gateway: PaymentGateway): void;
+  /**
+   * Register a cloud save path resolver SPI implementation.
+   * Requires the `cloudsave:provider` capability.
+   */
+  registerCloudSaveResolver(resolver: CloudSavePathResolver): void;
 }
 
 export interface ServerPlugin {
@@ -439,6 +446,11 @@ export interface ClientPluginContext {
    * Requires the `metadata:provider` capability.
    */
   registerMetadataProvider?(provider: MetadataProvider): () => void;
+  /**
+   * Register a client-side cloud save path resolver SPI implementation.
+   * Requires the `cloudsave:provider` capability.
+   */
+  registerCloudSaveResolver?(resolver: CloudSavePathResolver): () => void;
   gameFs: ScopedGameFs;
   gameScanner: ScopedGameScanner;
   serverWs: ClientPluginWebSocket;
@@ -573,4 +585,30 @@ export interface PaymentGateway {
     payload: unknown,
     headers: Record<string, string>,
   ): Promise<PaymentWebhookResult>;
+}
+
+// ==========================================
+// Cloud Save Provider SPI (#9)
+// ==========================================
+
+export interface CloudSavePattern {
+  pattern: string;
+  platform?: "windows" | "linux" | "macos";
+  winePrefix?: boolean;
+}
+
+export interface GameInstallContext {
+  gameId: string;
+  gameTitle: string;
+  installDir?: string;
+  winePrefix?: string;
+  executableName?: string;
+}
+
+export interface CloudSavePathResolver {
+  id: string;
+  name: string;
+  resolveSavePaths(
+    gameContext: GameInstallContext,
+  ): Promise<CloudSavePattern[]>;
 }

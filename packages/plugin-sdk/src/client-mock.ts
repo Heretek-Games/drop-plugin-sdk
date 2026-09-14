@@ -6,6 +6,7 @@ import type {
   ClientPluginStorage,
   ClientPluginSystem,
   ClientPluginWebSocket,
+  CloudSavePathResolver,
   CommandOptions,
   CommandResult,
   GameMenuItem,
@@ -227,6 +228,7 @@ export class MockClientPluginContext implements ClientPluginContext {
   public launchHooks: LaunchHook[] = [];
   public storeScanners: StoreScanner[] = [];
   public metadataProviders: MetadataProvider[] = [];
+  public cloudSaveResolvers: CloudSavePathResolver[] = [];
 
   public gameFs: MockScopedGameFs;
   public gameScanner: MockScopedGameScanner;
@@ -353,6 +355,18 @@ export class MockClientPluginContext implements ClientPluginContext {
     return () => {
       const idx = this.metadataProviders.indexOf(provider);
       if (idx !== -1) this.metadataProviders.splice(idx, 1);
+    };
+  }
+
+  registerCloudSaveResolver(resolver: CloudSavePathResolver): () => void {
+    if (!resolver || typeof resolver.id !== "string" || !resolver.id.trim()) {
+      throw new Error("Cloud save resolver must have a valid non-empty id");
+    }
+    this.assertCapability("cloudsave:provider");
+    this.cloudSaveResolvers.push(resolver);
+    return () => {
+      const idx = this.cloudSaveResolvers.indexOf(resolver);
+      if (idx !== -1) this.cloudSaveResolvers.splice(idx, 1);
     };
   }
 

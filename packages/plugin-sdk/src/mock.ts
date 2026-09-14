@@ -1,4 +1,5 @@
 import type {
+  CloudSavePathResolver,
   HttpMethod,
   MetadataProvider,
   PaymentGateway,
@@ -156,6 +157,7 @@ export class MockPluginContext implements PluginContext {
 
   public metadataProviders = new Map<string, MetadataProvider>();
   public paymentGateways = new Map<string, PaymentGateway>();
+  public cloudSaveResolvers = new Map<string, CloudSavePathResolver>();
 
   registerMetadataProvider(provider: MetadataProvider): void {
     if (!provider || typeof provider.id !== "string" || !provider.id.trim()) {
@@ -181,6 +183,20 @@ export class MockPluginContext implements PluginContext {
       throw new Error(`Payment gateway '${gateway.id}' is already registered`);
     }
     this.paymentGateways.set(gateway.id, gateway);
+  }
+
+  registerCloudSaveResolver(resolver: CloudSavePathResolver): void {
+    if (!resolver || typeof resolver.id !== "string" || !resolver.id.trim()) {
+      throw new Error("Cloud save resolver must have a valid non-empty id");
+    }
+    this.assertCapability("cloudsave:provider");
+    const existing = this.cloudSaveResolvers.get(resolver.id);
+    if (existing && existing !== resolver) {
+      throw new Error(
+        `Cloud save resolver '${resolver.id}' is already registered`,
+      );
+    }
+    this.cloudSaveResolvers.set(resolver.id, resolver);
   }
 
   private assertCapability(cap: PluginCapability): void {

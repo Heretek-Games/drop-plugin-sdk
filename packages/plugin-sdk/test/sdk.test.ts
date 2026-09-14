@@ -270,3 +270,62 @@ test("MockClientPluginContext registers store scanners, overlay slots, and enfor
     });
   }, /missing required capability 'client:library-scan'/);
 });
+
+test("MockPluginContext and MockClientPluginContext register and gate CloudSavePathResolver", async () => {
+  // Server context
+  const serverCtx = new MockPluginContext("server-cloudsave-test", [
+    "cloudsave:provider",
+  ]);
+
+  serverCtx.registerCloudSaveResolver({
+    id: "ludusavi-server",
+    name: "Ludusavi Server Resolver",
+    resolveSavePaths: async (context) => [
+      { pattern: "%APPDATA%/SaveGames", platform: "windows" },
+    ],
+  });
+  assert.ok(serverCtx.cloudSaveResolvers.has("ludusavi-server"));
+
+  // Duplicate registration throws
+  assert.throws(() => {
+    serverCtx.registerCloudSaveResolver({
+      id: "ludusavi-server",
+      name: "Duplicate",
+      resolveSavePaths: async () => [],
+    });
+  }, /Cloud save resolver 'ludusavi-server' is already registered/);
+
+  // Client context
+  const clientCtx = new MockClientPluginContext("client-cloudsave-test", [
+    "cloudsave:provider",
+  ]);
+
+  const unregister = clientCtx.registerCloudSaveResolver({
+    id: "ludusavi-client",
+    name: "Ludusavi Client Resolver",
+    resolveSavePaths: async (context) => [
+      { pattern: "~/.local/share/saves", platform: "linux" },
+    ],
+  });
+
+  assert.equal(clientCtx.cloudSaveResolvers.length, 1);
+  const patterns = await clientCtx.cloudSaveResolvers[0].resolveSavePaths({
+    gameId: "game-1",
+    gameTitle: "Test Game",
+  });
+  assert.equal(patterns.length, 1);
+  assert.equal(patterns[0].platform, "linux");
+
+  unregister();
+  assert.equal(clientCtx.cloudSaveResolvers.length, 0);
+
+  // Missing capability throws
+  const restrictedClient = new MockClientPluginContext("restricted", ["ui:slot"]);
+  assert.throws(() => {
+    restrictedClient.registerCloudSaveResolver({
+      id: "test",
+      name: "Test",
+      resolveSavePaths: async () => [],
+    });
+  }, /missing required capability 'cloudsave:provider'/);
+});
