@@ -10,8 +10,8 @@ Maintained by [Heretek Games](https://github.com/Heretek-Games/drop-plugin-sdk).
 
 | Package                                           | Version | Role                                                                                                                                                                   |
 | :------------------------------------------------ | :------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`@droposs/plugin-sdk`** (`packages/plugin-sdk`) | `0.1.0` | Universal runtime types (`PLUGIN_API_VERSION = 2`), JSON Schema, RPC helper client, and test harnesses (`MockPluginContext`, `MockClientPluginContext`).               |
-| **`@droposs/plugin-cli`** (`packages/plugin-cli`) | `0.1.0` | Developer CLI (`drop-plugin`) providing scaffolding (`init`), bundling (`build`), validation (`validate`), testing (`test`), signing (`sign`), and packaging (`pack`). |
+| **`@droposs/plugin-sdk`** (`packages/plugin-sdk`) | `0.4.0` | Universal runtime types (`PLUGIN_API_VERSION = 2`), JSON Schema, RPC helper client, and test harnesses (`MockPluginContext`, `MockClientPluginContext`).               |
+| **`@droposs/plugin-cli`** (`packages/plugin-cli`) | `0.4.0` | Developer CLI (`drop-plugin`) providing scaffolding (`init`), bundling (`build`), validation (`validate`), testing (`test`), signing (`sign`), and packaging (`pack`). |
 | **`templates/starter-plugin`**                    | `1.0.0` | Reference starter template for creating full-stack Drop plugins (server + desktop client).                                                                             |
 
 ---
