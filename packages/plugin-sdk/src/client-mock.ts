@@ -11,11 +11,13 @@ import type {
   GameMenuItem,
   HttpMethod,
   LaunchHook,
+  MetadataProvider,
   PlayAction,
   PluginLogger,
   ScopedGameFs,
   ScopedGameScanner,
   SidebarItem,
+  StoreScanner,
   TopBarItem,
   UISlotName,
   UISlotRegistration,
@@ -223,6 +225,8 @@ export class MockClientPluginContext implements ClientPluginContext {
   public sidebarItems: SidebarItem[] = [];
   public topBarItems: TopBarItem[] = [];
   public launchHooks: LaunchHook[] = [];
+  public storeScanners: StoreScanner[] = [];
+  public metadataProviders: MetadataProvider[] = [];
 
   public gameFs: MockScopedGameFs;
   public gameScanner: MockScopedGameScanner;
@@ -325,6 +329,24 @@ export class MockClientPluginContext implements ClientPluginContext {
     return () => {
       const idx = this.launchHooks.indexOf(hook);
       if (idx !== -1) this.launchHooks.splice(idx, 1);
+    };
+  }
+
+  registerStoreScanner(scanner: StoreScanner): () => void {
+    this.assertCapability("client:library-scan");
+    this.storeScanners.push(scanner);
+    return () => {
+      const idx = this.storeScanners.indexOf(scanner);
+      if (idx !== -1) this.storeScanners.splice(idx, 1);
+    };
+  }
+
+  registerMetadataProvider(provider: MetadataProvider): () => void {
+    this.assertCapability("metadata:provider");
+    this.metadataProviders.push(provider);
+    return () => {
+      const idx = this.metadataProviders.indexOf(provider);
+      if (idx !== -1) this.metadataProviders.splice(idx, 1);
     };
   }
 

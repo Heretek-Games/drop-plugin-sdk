@@ -101,3 +101,107 @@ test("PluginRpcClient sends messages through WebSocket mock", async () => {
   assert.deepEqual(sendRes, { ack: true });
   assert.equal(ctx.serverWs.sentMessages.length, 1);
 });
+
+test("MockPluginContext registers metadata providers and payment gateways", () => {
+  const ctx = new MockPluginContext("server-spi-test", [
+    "metadata:provider",
+    "commerce:payment",
+  ]);
+
+  // Metadata Provider
+  ctx.registerMetadataProvider({
+    id: "steamgriddb",
+    name: "SteamGridDB",
+    search: async (query) => [
+      { id: "sgdb-1", title: query, provider: "steamgriddb" },
+    ],
+    getDetails: async (id) => ({
+      id,
+      title: "Test Game",
+      provider: "steamgriddb",
+    }),
+  });
+  assert.ok(ctx.metadataProviders.has("steamgriddb"));
+
+  // Payment Gateway
+  ctx.registerPaymentGateway({
+    id: "stripe",
+    name: "Stripe",
+    createPaymentIntent: async (req) => ({
+      intentId: "pi_123",
+      status: "pending",
+    }),
+    handleWebhook: async () => ({
+      orderId: "ord_1",
+      status: "succeeded",
+      transactionId: "tx_1",
+    }),
+  });
+  assert.ok(ctx.paymentGateways.has("stripe"));
+
+  // Lacking capabilities throws
+  const restricted = new MockPluginContext("restricted", ["routes"]);
+  assert.throws(() => {
+    restricted.registerMetadataProvider({
+      id: "denied",
+      name: "Denied",
+      search: async () => [],
+      getDetails: async () => null,
+    });
+  }, /missing required capability 'metadata:provider'/);
+
+  assert.throws(() => {
+    restricted.registerPaymentGateway({
+      id: "denied-pay",
+      name: "Denied",
+      createPaymentIntent: async () => ({ intentId: "", status: "failed" }),
+      handleWebhook: async () => ({
+        orderId: "",
+        status: "failed",
+        transactionId: "",
+      }),
+    });
+  }, /missing required capability 'commerce:payment'/);
+});
+
+test("MockClientPluginContext registers store scanners and enforces capability", async () => {
+  const ctx = new MockClientPluginContext("scanner-test", [
+    "client:library-scan",
+  ]);
+
+  const unregister = ctx.registerStoreScanner({
+    id: "gog-scanner",
+    name: "GOG Galaxy Scanner",
+    store: "gog",
+    scan: async () => [
+      {
+        externalId: "gog-1",
+        store: "gog",
+        title: "The Witcher 3",
+        installPath: "/games/witcher3",
+      },
+    ],
+  });
+
+  assert.equal(ctx.storeScanners.length, 1);
+  assert.equal(ctx.storeScanners[0].id, "gog-scanner");
+  const games = await ctx.storeScanners[0].scan();
+  assert.equal(games.length, 1);
+  assert.equal(games[0].title, "The Witcher 3");
+
+  unregister();
+  assert.equal(ctx.storeScanners.length, 0);
+
+  // Missing capability throws
+  const restricted = new MockClientPluginContext("restricted-scanner", [
+    "ui:slot",
+  ]);
+  assert.throws(() => {
+    restricted.registerStoreScanner({
+      id: "epic",
+      name: "Epic",
+      store: "epic",
+      scan: async () => [],
+    });
+  }, /missing required capability 'client:library-scan'/);
+});

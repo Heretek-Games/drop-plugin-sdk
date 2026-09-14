@@ -98,7 +98,10 @@
           "client:storage",
           "client:ws",
           "system:sidecar",
-          "system:command"
+          "system:command",
+          "metadata:provider",
+          "commerce:payment",
+          "client:library-scan"
         ]
       },
       "uniqueItems": true,
@@ -147,7 +150,15 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["routes", "storage", "websocket", "events", "network"]
+            "enum": [
+              "routes",
+              "storage",
+              "websocket",
+              "events",
+              "network",
+              "metadata:provider",
+              "commerce:payment"
+            ]
           }
         },
         "storageVersion": {
@@ -184,7 +195,9 @@
               "client:storage",
               "client:ws",
               "system:sidecar",
-              "system:command"
+              "system:command",
+              "metadata:provider",
+              "client:library-scan"
             ]
           }
         },
@@ -210,7 +223,9 @@
                   "game-detail:badges",
                   "settings:tabs",
                   "topbar:status",
-                  "sidebar:nav"
+                  "sidebar:nav",
+                  "overlay:panel",
+                  "overlay:quick-access"
                 ]
               },
               "component": {

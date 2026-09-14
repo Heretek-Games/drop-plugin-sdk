@@ -1,5 +1,7 @@
 import type {
   HttpMethod,
+  MetadataProvider,
+  PaymentGateway,
   PluginCapability,
   PluginContext,
   PluginLogger,
@@ -150,6 +152,19 @@ export class MockPluginContext implements PluginContext {
   async fetch(input: string | URL, init?: RequestInit): Promise<Response> {
     this.assertCapability("network");
     return globalThis.fetch(input, init);
+  }
+
+  public metadataProviders = new Map<string, MetadataProvider>();
+  public paymentGateways = new Map<string, PaymentGateway>();
+
+  registerMetadataProvider(provider: MetadataProvider): void {
+    this.assertCapability("metadata:provider");
+    this.metadataProviders.set(provider.id, provider);
+  }
+
+  registerPaymentGateway(gateway: PaymentGateway): void {
+    this.assertCapability("commerce:payment");
+    this.paymentGateways.set(gateway.id, gateway);
   }
 
   private assertCapability(cap: PluginCapability): void {
