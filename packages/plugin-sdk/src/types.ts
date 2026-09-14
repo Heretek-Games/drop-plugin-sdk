@@ -168,6 +168,15 @@ export interface PluginLogger {
   debug(msg: string, ...args: any[]): void;
 }
 
+export interface WebSocketOptions {
+  /**
+   * If true, clients can subscribe to and receive broadcasts on this channel
+   * without an authenticated user session (e.g. public game lobbies, server status).
+   * Defaults to false.
+   */
+  public?: boolean;
+}
+
 export interface PluginContext {
   id: string;
   logger: PluginLogger;
@@ -183,7 +192,16 @@ export interface PluginContext {
    * Handle client messages on a WebSocket channel. Requires the `websocket`
    * capability. Channel names are global; a channel may only be claimed once.
    */
-  registerWebSocket(channel: string, handler: WebSocketHandler): void;
+  registerWebSocket(
+    channel: string,
+    handler: WebSocketHandler,
+    options?: WebSocketOptions,
+  ): void;
+  /**
+   * Mark a channel as publicly readable without authentication.
+   * Requires the `websocket` capability.
+   */
+  registerPublicWebSocketChannel(channel: string): void;
   /**
    * Gate client subscriptions to channels matching `matches`. Requires the
    * `websocket` capability. Channels with no matching authorizer stay open to
@@ -328,7 +346,9 @@ export interface ScopedGameFs {
 export interface AntiCheatReport {
   detected: boolean;
   reason?: string;
+  provider?: string;
   binaries?: string[];
+  files?: string[];
 }
 
 export interface ScopedGameScanner {

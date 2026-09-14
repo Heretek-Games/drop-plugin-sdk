@@ -103,6 +103,20 @@ npx drop-plugin pack . ./dist-package
 
 ---
 
+## Documentation & Guides
+
+Comprehensive guides are available in the [`docs/`](./docs) directory:
+
+- [**Getting Started Tutorial**](./docs/getting-started.md): Scaffolding, implementing, testing, and installing your first plugin.
+- [**Server Plugins Guide**](./docs/server-plugins.md): HTTP routing, persistent storage, schema migrations, WebSockets, event bus, and network egress.
+- [**Client Plugins Guide**](./docs/client-plugins.md): UI slots, Play Actions, context menus, game launch pipeline with reverse rollback, scoped filesystem, and native execution.
+- [**Testing Guide**](./docs/testing-plugins.md): Unit testing server and client plugins using `MockPluginContext` and `MockClientPluginContext`.
+- [**Manifest Reference (`drop-plugin.json`)**](./docs/manifest-reference.md): Complete schema specification and capabilities reference.
+- [**Packaging, Signing & Distribution**](./docs/publishing-and-distribution.md): Cryptographic bundle signing, packaging, and hosting community registries.
+- [**Community Ecosystem Patterns**](./docs/community-ecosystem.md): Architectural patterns inspired by Playnite, Stash, and RomM.
+
+---
+
 ## License
 
 MIT © Heretek Games

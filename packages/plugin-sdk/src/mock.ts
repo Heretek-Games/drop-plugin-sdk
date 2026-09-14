@@ -116,9 +116,27 @@ export class MockPluginContext implements PluginContext {
     };
   }
 
-  registerWebSocket(channel: string, handler: WebSocketHandler): void {
+  public readonly publicChannels = new Set<string>();
+
+  registerWebSocket(
+    channel: string,
+    handler: WebSocketHandler,
+    options?: { public?: boolean },
+  ): void {
     this.assertCapability("websocket");
     this.wsHandlers.set(channel, handler);
+    if (options?.public) {
+      this.publicChannels.add(channel);
+    }
+  }
+
+  registerPublicWebSocketChannel(channel: string): void {
+    this.assertCapability("websocket");
+    this.publicChannels.add(channel);
+  }
+
+  isPublicChannel(channel: string): boolean {
+    return this.publicChannels.has(channel);
   }
 
   registerSubscriptionAuthorizer(

@@ -1,21 +1,19 @@
-# Reusable GitHub Actions workflow for Drop plugin authors
-# Drop this file into .github/workflows/release.yml in your plugin repository.
 name: Release Drop Plugin
 
 on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
-  build-and-release:
+  release:
+    name: Build, Sign, and Release Package
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -23,26 +21,40 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm ci || npm install
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Build plugin bundle
-        run: npx @droposs/plugin-cli build .
+      - name: Install Dependencies
+        run: pnpm install
 
-      - name: Run plugin test suite
+      - name: Run Unit Tests
         run: npx @droposs/plugin-cli test .
 
-      - name: Sign plugin bundle
-        env:
-          DROP_PLUGIN_SIGNING_KEY: ${{ secrets.DROP_PLUGIN_SIGNING_KEY }}
-        run: npx @droposs/plugin-cli sign .
+      - name: Build Bundles
+        run: npx @droposs/plugin-cli build .
 
-      - name: Package .dropplugin archive
+      - name: Validate Manifest
+        run: npx @droposs/plugin-cli validate .
+
+      - name: Package Plugin Archive
         run: npx @droposs/plugin-cli pack . ./dist-package
 
-      - name: Publish GitHub Release
+      - name: Generate Checksums
+        id: pkg
+        run: |
+          FILE=$(ls dist-package/*.dropplugin | head -n 1)
+          echo "path=$FILE" >> $GITHUB_OUTPUT
+          echo "filename=$(basename $FILE)" >> $GITHUB_OUTPUT
+          sha256sum "$FILE" > "$FILE.sha256"
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ./dist-package/*.dropplugin
+          files: |
+            ${{ steps.pkg.outputs.path }}
+            ${{ steps.pkg.outputs.path }}.sha256
+          draft: false
+          prerelease: false
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
