@@ -13,6 +13,9 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Must match the "Environment" configured on the npm Trusted Publisher,
+    # otherwise npm rejects the OIDC exchange with a 404.
+    environment: Heretek-Games
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
