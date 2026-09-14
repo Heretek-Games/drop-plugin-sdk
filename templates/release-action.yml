@@ -1,0 +1,48 @@
+# Reusable GitHub Actions workflow for Drop plugin authors
+# Drop this file into .github/workflows/release.yml in your plugin repository.
+name: Release Drop Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Build plugin bundle
+        run: npx @droposs/plugin-cli build .
+
+      - name: Run plugin test suite
+        run: npx @droposs/plugin-cli test .
+
+      - name: Sign plugin bundle
+        env:
+          DROP_PLUGIN_SIGNING_KEY: ${{ secrets.DROP_PLUGIN_SIGNING_KEY }}
+        run: npx @droposs/plugin-cli sign .
+
+      - name: Package .dropplugin archive
+        run: npx @droposs/plugin-cli pack . ./dist-package
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ./dist-package/*.dropplugin
+          generate_release_notes: true

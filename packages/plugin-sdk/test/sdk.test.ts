@@ -81,3 +81,23 @@ test("MockClientPluginContext throws on undeclared capability", () => {
     ctx.registerPlayAction(() => []);
   }, /missing required capability 'ui:play-action'/);
 });
+
+test("PluginRpcClient sends messages through WebSocket mock", async () => {
+  const ctx = new MockClientPluginContext("my-plugin");
+  const rpc = new (await import("../dist/index.js")).PluginRpcClient({
+    pluginId: "my-plugin",
+    ws: ctx.serverWs,
+  });
+
+  let received: any = null;
+  rpc.subscribeWs("my-channel", (data) => {
+    received = data;
+  });
+
+  ctx.serverWs.simulateServerMessage("my-channel", { ping: "pong" });
+  assert.deepEqual(received, { ping: "pong" });
+
+  const sendRes = await rpc.sendWs("my-channel", { hello: "server" });
+  assert.deepEqual(sendRes, { ack: true });
+  assert.equal(ctx.serverWs.sentMessages.length, 1);
+});

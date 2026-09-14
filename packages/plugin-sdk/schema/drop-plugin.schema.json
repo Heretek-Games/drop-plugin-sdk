@@ -1,0 +1,215 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://droposs.org/schemas/drop-plugin.schema.json",
+  "title": "DropPluginManifest",
+  "description": "Schema for drop-plugin.json plugin manifests in Drop OSS",
+  "type": "object",
+  "required": ["id", "name", "version"],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Unique plugin identifier containing only lowercase letters, digits, dots, underscores, or hyphens"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable display name of the plugin"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+",
+      "description": "Semver-compliant version string (e.g. 1.0.0)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Summary of plugin features and purpose"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author name or organization"
+    },
+    "homepage": {
+      "type": "string",
+      "description": "URL to plugin homepage, repository, or documentation"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX license identifier (e.g. MIT, Apache-2.0)"
+    },
+    "builtin": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the plugin is built into Drop core"
+    },
+    "apiVersion": {
+      "type": "integer",
+      "enum": [1, 2],
+      "default": 2,
+      "description": "Target Drop Plugin API version"
+    },
+    "trust": {
+      "type": "string",
+      "enum": ["trusted", "sandboxed"],
+      "default": "trusted",
+      "description": "Trust tier. Only 'trusted' is executed today"
+    },
+    "storageVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Declared storage schema version for migrations"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["generic", "metadata", "storage", "multiplayer"],
+      "default": "generic",
+      "description": "Functional category of the plugin"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["server", "client"]
+      },
+      "uniqueItems": true,
+      "description": "Execution targets supported by this plugin"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "routes",
+          "storage",
+          "websocket",
+          "events",
+          "network",
+          "ui:slot",
+          "ui:play-action",
+          "ui:context-menu",
+          "ui:sidebar",
+          "ui:topbar",
+          "game:launch-hook",
+          "game:fs",
+          "game:scan",
+          "client:storage",
+          "client:ws",
+          "system:sidecar"
+        ]
+      },
+      "uniqueItems": true,
+      "description": "Permissions required by the plugin"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Default enabled status upon installation"
+    },
+    "entry": {
+      "type": "string",
+      "description": "Relative path to the primary JavaScript entry point"
+    },
+    "clientEntry": {
+      "type": "string",
+      "description": "Relative path to the client JavaScript entry point (optional alias for client.entry)"
+    },
+    "checksum": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Hex SHA-256 digest of the primary entry point file"
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "description": "Mapping of relative bundle file paths to their hex SHA-256 digests"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Hex HMAC-SHA256 signature covering the aggregate bundle digest"
+    },
+    "server": {
+      "type": "object",
+      "required": ["entry"],
+      "properties": {
+        "entry": {
+          "type": "string",
+          "description": "Relative path to server entry point"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["routes", "storage", "websocket", "events", "network"]
+          }
+        },
+        "storageVersion": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "client": {
+      "type": "object",
+      "required": ["entry"],
+      "properties": {
+        "entry": {
+          "type": "string",
+          "description": "Relative path to client entry point"
+        },
+        "css": {
+          "type": "string",
+          "description": "Optional stylesheet associated with the client entry"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ui:slot",
+              "ui:play-action",
+              "ui:context-menu",
+              "ui:sidebar",
+              "ui:topbar",
+              "game:launch-hook",
+              "game:fs",
+              "game:scan",
+              "client:storage",
+              "client:ws",
+              "system:sidecar"
+            ]
+          }
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slot", "component"],
+            "properties": {
+              "slot": {
+                "type": "string",
+                "enum": [
+                  "game-detail:actions",
+                  "game-detail:panels",
+                  "game-detail:badges",
+                  "settings:tabs",
+                  "topbar:status",
+                  "sidebar:nav"
+                ]
+              },
+              "component": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

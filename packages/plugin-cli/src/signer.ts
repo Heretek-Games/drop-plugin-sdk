@@ -1,25 +1,79 @@
 import { createHash, createHmac } from "node:crypto";
 import { readdir, readFile, realpath, stat, writeFile, mkdir } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
+import Ajv from "ajv";
 
 const MANIFEST_FILE = "drop-plugin.json";
 
-function isInside(base: string, candidate: string): boolean {
-  const relative = path.relative(base, candidate);
-  return (
-    relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative)
-  );
+export function isInside(base: string, candidate: string): boolean {
+  const rel = path.relative(path.resolve(base), path.resolve(candidate));
+  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+async function loadSchema(): Promise<object> {
+  try {
+    const require = createRequire(import.meta.url);
+    const schemaPath = require.resolve("@droposs/plugin-sdk/schema.json");
+    return JSON.parse(await readFile(schemaPath, "utf-8"));
+  } catch {
+    const fallback = path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "../../plugin-sdk/schema/drop-plugin.schema.json",
+    );
+    return JSON.parse(await readFile(fallback, "utf-8"));
+  }
+}
+
+let cachedValidator: ((data: unknown) => boolean) | null = null;
+let cachedErrors: string[] = [];
+
+export async function validateManifest(
+  manifest: unknown,
+): Promise<{ valid: boolean; errors: string[] }> {
+  if (!cachedValidator) {
+    const schema = await loadSchema();
+    // @ts-ignore
+    const AjvClass = Ajv.default ?? Ajv;
+    const ajv = new AjvClass({ allErrors: true, strict: false });
+    const compiled = ajv.compile(schema);
+    cachedValidator = (data: unknown) => {
+      const ok = compiled(data);
+      if (!ok && compiled.errors) {
+        cachedErrors = compiled.errors.map(
+          (err: any) => `${err.instancePath || "/"} ${err.message}`,
+        );
+      } else {
+        cachedErrors = [];
+      }
+      return Boolean(ok);
+    };
+  }
+
+  const valid = cachedValidator(manifest);
+  return { valid, errors: [...cachedErrors] };
 }
 
 export async function listFiles(root: string, prefix = ""): Promise<string[]> {
   const results: string[] = [];
-  const entries = await readdir(path.join(root, prefix), { withFileTypes: true });
+  const dirPath = path.join(root, prefix);
+  const entries = await readdir(dirPath, { withFileTypes: true });
+
   for (const entry of entries) {
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
+    const fullPath = path.join(root, rel);
+
+    // Enforce confinement invariant: symlinks or traversal outside bundle root are rejected
+    const real = await realpath(fullPath).catch(() => null);
+    if (!real || !isInside(root, real)) {
+      throw new Error(`Path traversal or symlink escape detected: ${rel}`);
+    }
+
+    const s = await stat(real);
+    if (s.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === ".git") continue;
       results.push(...(await listFiles(root, rel)));
-    } else if (entry.isFile()) {
+    } else if (s.isFile()) {
       if (!prefix && entry.name === MANIFEST_FILE) continue;
       results.push(rel);
     }
@@ -30,6 +84,7 @@ export async function listFiles(root: string, prefix = ""): Promise<string[]> {
 export async function signPlugin(
   targetDir: string,
   signingKey?: string,
+  validate = true,
 ): Promise<{ fileCount: number; signed: boolean }> {
   const resolvedPath = path.resolve(process.cwd(), targetDir);
   const bundleDir = await realpath(resolvedPath).catch(() => null);
@@ -40,6 +95,15 @@ export async function signPlugin(
   const manifestPath = path.join(bundleDir, MANIFEST_FILE);
   const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
 
+  if (validate) {
+    const validation = await validateManifest(manifest);
+    if (!validation.valid) {
+      throw new Error(
+        `Manifest validation failed against schema:\n  ${validation.errors.join("\n  ")}`,
+      );
+    }
+  }
+
   // Identify primary entry (v1 or v2 server/client entry)
   const entry =
     manifest.entry ??
@@ -47,6 +111,10 @@ export async function signPlugin(
     manifest.client?.entry ??
     "index.js";
   const entryPath = path.resolve(bundleDir, entry);
+  if (!isInside(bundleDir, entryPath) && entryPath !== bundleDir) {
+    throw new Error(`Entry path outside bundle directory: ${entry}`);
+  }
+
   const entryExists = await stat(entryPath).catch(() => null);
   if (entryExists) {
     const entryBytes = await readFile(entryPath);

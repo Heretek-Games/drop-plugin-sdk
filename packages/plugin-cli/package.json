@@ -6,8 +6,8 @@
   "bin": {
     "drop-plugin": "./bin/drop-plugin.js"
   },
-  "main": "dist/signer.js",
-  "types": "dist/signer.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "bin",
     "dist"
@@ -39,8 +39,13 @@
     "test": "node --test"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@droposs/plugin-sdk": "workspace:*",
+    "ajv": "^8.20.0",
+    "esbuild": "^0.28.2"
+  }
 }
