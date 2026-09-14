@@ -29,7 +29,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: 'https://registry.npmjs.org'
+          # NOTE: no `registry-url` — setup-node would write a dummy
+          # //registry.npmjs.org/:_authToken into .npmrc, which disables OIDC
+          # trusted publishing.
+
+      - name: Upgrade npm for Trusted Publishing (needs >= 11.5.1)
+        run: npm install -g npm@11.5.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
