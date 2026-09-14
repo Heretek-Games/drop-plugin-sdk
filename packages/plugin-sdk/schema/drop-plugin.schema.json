@@ -97,7 +97,8 @@
           "game:scan",
           "client:storage",
           "client:ws",
-          "system:sidecar"
+          "system:sidecar",
+          "system:command"
         ]
       },
       "uniqueItems": true,
@@ -182,9 +183,18 @@
               "game:scan",
               "client:storage",
               "client:ws",
-              "system:sidecar"
+              "system:sidecar",
+              "system:command"
             ]
           }
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Allowlisted binaries the client plugin may run via ctx.system.run (requires system:command)"
         },
         "slots": {
           "type": "array",

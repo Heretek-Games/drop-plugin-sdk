@@ -4,7 +4,10 @@ import type {
   ClientCapability,
   ClientPluginContext,
   ClientPluginStorage,
+  ClientPluginSystem,
   ClientPluginWebSocket,
+  CommandOptions,
+  CommandResult,
   GameMenuItem,
   HttpMethod,
   LaunchContext,
@@ -176,6 +179,32 @@ export class MockClientServerRequest {
   }
 }
 
+export class MockSystemCommand implements ClientPluginSystem {
+  public calls: Array<{ bin: string; args: string[]; options?: CommandOptions }> =
+    [];
+  public responses = new Map<string, CommandResult>();
+  /** Result returned when no canned response is registered. */
+  public fallback: CommandResult = { code: 0, stdout: "", stderr: "" };
+
+  private key(bin: string, args: string[]): string {
+    return [bin, ...args].join(" ");
+  }
+
+  setResponse(bin: string, args: string[], result: CommandResult): void {
+    this.responses.set(this.key(bin, args), result);
+  }
+
+  async run(
+    bin: string,
+    args: string[] = [],
+    options?: CommandOptions,
+  ): Promise<CommandResult> {
+    this.calls.push({ bin, args, options });
+    const result = this.responses.get(this.key(bin, args)) ?? this.fallback;
+    return { ...result };
+  }
+}
+
 export class MockClientPluginContext implements ClientPluginContext {
   public id: string;
   public logger: PluginLogger;
@@ -195,6 +224,8 @@ export class MockClientPluginContext implements ClientPluginContext {
   public gameScanner: MockScopedGameScanner;
   public serverWs: MockClientPluginWebSocket;
   public serverRequestLog: MockClientServerRequest;
+  public systemCommand: MockSystemCommand;
+  public system: ClientPluginSystem;
 
   constructor(
     id: string,
@@ -219,6 +250,13 @@ export class MockClientPluginContext implements ClientPluginContext {
     this.gameScanner = new MockScopedGameScanner();
     this.serverWs = new MockClientPluginWebSocket();
     this.serverRequestLog = new MockClientServerRequest();
+    this.systemCommand = new MockSystemCommand();
+    this.system = {
+      run: async (bin, args = [], options) => {
+        this.assertCapability("system:command");
+        return await this.systemCommand.run(bin, args, options);
+      },
+    };
   }
 
   registerSlot(

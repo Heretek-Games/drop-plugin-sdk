@@ -29,7 +29,8 @@ export type ClientCapability =
   | "game:scan"
   | "client:storage"
   | "client:ws"
-  | "system:sidecar";
+  | "system:sidecar"
+  | "system:command";
 
 export type PluginCapability = ServerCapability | ClientCapability;
 
@@ -91,6 +92,12 @@ export interface PluginManifest extends PluginMetadata {
     css?: string;
     capabilities: ClientCapability[];
     slots?: Array<{ slot: UISlotName; component: string }>;
+    /**
+     * Bare executable names the client plugin may run via `ctx.system.run`
+     * (requires the `system:command` capability). The desktop host rejects any
+     * binary not listed here.
+     */
+    commands?: string[];
   };
 }
 
@@ -340,6 +347,36 @@ export interface ClientPluginWebSocket {
   subscribe(channel: string, listener: (data: unknown) => void): () => void;
 }
 
+/** Result of a native command run through the client host. */
+export interface CommandResult {
+  /** Process exit code. Non-zero indicates failure. */
+  code: number;
+  stdout: string;
+  stderr: string;
+}
+
+export interface CommandOptions {
+  /** Working directory for the process. */
+  cwd?: string;
+  /** Hard timeout in milliseconds; the host kills the process when exceeded. */
+  timeoutMs?: number;
+}
+
+/**
+ * Native command execution for client plugins.
+ *
+ * The host runs the binary directly (no shell) and enforces a per-plugin
+ * allowlist declared in the manifest (`client.commands`). Binaries that are
+ * not allowlisted are rejected; shell metacharacters are never interpreted.
+ */
+export interface ClientPluginSystem {
+  run(
+    bin: string,
+    args?: string[],
+    options?: CommandOptions,
+  ): Promise<CommandResult>;
+}
+
 export interface ClientPluginContext {
   id: string;
   logger: PluginLogger;
@@ -359,6 +396,8 @@ export interface ClientPluginContext {
   gameFs: ScopedGameFs;
   gameScanner: ScopedGameScanner;
   serverWs: ClientPluginWebSocket;
+  /** Native command execution. Requires the `system:command` capability. */
+  system: ClientPluginSystem;
   /**
    * Call this plugin's own server-side REST routes through the desktop host.
    *
