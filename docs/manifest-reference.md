@@ -122,7 +122,7 @@ Capabilities are **strictly fail-closed**. If an API is called without the corre
 | `ui:topbar`        | Adding status items to the top navigation bar                            |
 | `game:launch-hook` | Registering pre-launch and post-exit hooks with rollback                 |
 | `game:fs`          | Scoped filesystem read/write/backup/restore in game folder               |
-| `game:scan`        | Computing executable hashes and detecting anti-cheat software            |
+| `game:scan`        | Computing executable hashes and searching install files by path pattern  |
 | `client:storage`   | LocalStorage access isolated by plugin ID                                |
 | `client:ws`        | Real-time messaging with server plugin WebSocket channels                |
 | `system:command`   | Running allowlisted native binaries declared in `client.commands`        |

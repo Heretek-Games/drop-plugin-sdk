@@ -1,6 +1,5 @@
 import { MockPluginLogger } from "./mock.js";
 import type {
-  AntiCheatReport,
   ClientCapability,
   ClientPluginContext,
   ClientPluginStorage,
@@ -112,7 +111,8 @@ export class MockScopedGameScanner implements ScopedGameScanner {
     sha256: string;
     size: number;
   }> = [];
-  public mockAntiCheat: AntiCheatReport = { detected: false };
+  /** Installed files returned by `findFiles`, filtered by pattern. */
+  public mockInstalledFiles: string[] = [];
 
   async scanExecutables(
     _gameId: string,
@@ -120,8 +120,11 @@ export class MockScopedGameScanner implements ScopedGameScanner {
     return [...this.mockExecutables];
   }
 
-  async checkAntiCheat(_gameId: string): Promise<AntiCheatReport> {
-    return { ...this.mockAntiCheat };
+  async findFiles(_gameId: string, patterns: string[]): Promise<string[]> {
+    const lowered = patterns.map((pattern) => pattern.toLowerCase());
+    return this.mockInstalledFiles.filter((file) =>
+      lowered.some((pattern) => file.toLowerCase().includes(pattern)),
+    );
   }
 }
 

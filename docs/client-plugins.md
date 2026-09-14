@@ -168,7 +168,7 @@ await ctx.gameFs.restoreFile(gameId, "steam_api64.dll");
 
 ---
 
-## 5. Executable Scanning & Anti-Cheat (`game:scan` Capability)
+## 5. Executable Scanning & File Search (`game:scan` Capability)
 
 ```typescript
 // Scan all executables and compute SHA-256 hashes
@@ -179,12 +179,14 @@ for (const exe of executables) {
   );
 }
 
-// Detect third-party anti-cheat engines (EAC, BattlEye, Vanguard)
-const report = await ctx.gameScanner.checkAntiCheat(gameId);
-if (report.detected) {
-  ctx.logger.warn(
-    `Anti-cheat detected (${report.provider}): ${report.files?.join(", ")}`,
-  );
+// Search for files by path fragment. The host has no domain knowledge, so the
+// plugin owns the meaning of the patterns (e.g. anti-cheat detection).
+const matches = await ctx.gameScanner.findFiles(gameId, [
+  "easyanticheat",
+  "battleye",
+]);
+if (matches.length > 0) {
+  ctx.logger.warn(`Anti-cheat indicators present: ${matches.join(", ")}`);
 }
 ```
 
