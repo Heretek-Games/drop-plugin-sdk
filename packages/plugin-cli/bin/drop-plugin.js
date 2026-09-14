@@ -14,7 +14,10 @@ const command = process.argv[2];
 const args = process.argv.slice(3);
 
 async function runValidate(dir) {
-  const manifestPath = path.join(path.resolve(process.cwd(), dir), "drop-plugin.json");
+  const manifestPath = path.join(
+    path.resolve(process.cwd(), dir),
+    "drop-plugin.json",
+  );
   const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
   const validation = await validateManifest(manifest);
   if (!validation.valid) {
@@ -75,7 +78,9 @@ async function main() {
     case "init": {
       const dir = args[0] || "my-drop-plugin";
       const res = await initPlugin(dir);
-      console.log(`Initialized new Drop plugin '${res.id}' at ${res.targetPath}`);
+      console.log(
+        `Initialized new Drop plugin '${res.id}' at ${res.targetPath}`,
+      );
       break;
     }
     case "validate": {

@@ -27,10 +27,7 @@ export class PluginRpcClient {
   /**
    * Send an HTTP request to the server plugin's registered route.
    */
-  async request<T = unknown>(
-    path: string,
-    init: RequestInit = {},
-  ): Promise<T> {
+  async request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
     const url = `${this.baseUrl}/api/v1/plugins/${this.pluginId}${cleanPath}`;
     const response = await fetch(url, {
@@ -80,6 +77,8 @@ export class PluginRpcClient {
   }
 }
 
-export function createPluginRpcClient(options: PluginRpcOptions): PluginRpcClient {
+export function createPluginRpcClient(
+  options: PluginRpcOptions,
+): PluginRpcClient {
   return new PluginRpcClient(options);
 }

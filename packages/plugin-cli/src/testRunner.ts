@@ -24,10 +24,7 @@ async function collectTestFiles(
 export async function testPlugin(targetDir = "."): Promise<void> {
   const dir = path.resolve(process.cwd(), targetDir);
 
-  const candidates = [
-    path.join(dir, "dist", "test"),
-    path.join(dir, "test"),
-  ];
+  const candidates = [path.join(dir, "dist", "test"), path.join(dir, "test")];
 
   let testFiles: string[] = [];
   for (const cand of candidates) {

@@ -59,19 +59,38 @@ export class MockPluginContext implements PluginContext {
   public storage: PluginStorage;
   public capabilities: Set<PluginCapability>;
 
-  public routes = new Map<string, { method: HttpMethod; pattern: string; handler: RouteHandler }>();
+  public routes = new Map<
+    string,
+    { method: HttpMethod; pattern: string; handler: RouteHandler }
+  >();
   public wsHandlers = new Map<string, WebSocketHandler>();
   public eventListeners = new Map<string, Set<(event: unknown) => void>>();
-  public authorizers: Array<{ matches: (c: string) => boolean; auth: SubscriptionAuthorizer }> = [];
+  public authorizers: Array<{
+    matches: (c: string) => boolean;
+    auth: SubscriptionAuthorizer;
+  }> = [];
 
-  constructor(id: string, capabilities: PluginCapability[] = ["routes", "storage", "websocket", "events", "network"]) {
+  constructor(
+    id: string,
+    capabilities: PluginCapability[] = [
+      "routes",
+      "storage",
+      "websocket",
+      "events",
+      "network",
+    ],
+  ) {
     this.id = id;
     this.logger = new MockPluginLogger();
     this.storage = new MockPluginStorage();
     this.capabilities = new Set(capabilities);
   }
 
-  registerRoute(method: HttpMethod, pattern: string, handler: RouteHandler): void {
+  registerRoute(
+    method: HttpMethod,
+    pattern: string,
+    handler: RouteHandler,
+  ): void {
     this.assertCapability("routes");
     this.routes.set(`${method} ${pattern}`, { method, pattern, handler });
   }
@@ -117,7 +136,9 @@ export class MockPluginContext implements PluginContext {
 
   private assertCapability(cap: PluginCapability): void {
     if (!this.capabilities.has(cap)) {
-      throw new Error(`Plugin '${this.id}' missing required capability '${cap}'`);
+      throw new Error(
+        `Plugin '${this.id}' missing required capability '${cap}'`,
+      );
     }
   }
 }

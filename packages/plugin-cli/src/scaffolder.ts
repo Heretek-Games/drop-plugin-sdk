@@ -15,8 +15,14 @@ export async function initPlugin(
   await mkdir(targetPath, { recursive: true });
 
   const candidates = [
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../../templates/starter-plugin"),
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), "../templates/starter-plugin"),
+    path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "../../../templates/starter-plugin",
+    ),
+    path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "../templates/starter-plugin",
+    ),
     path.resolve(process.cwd(), "templates/starter-plugin"),
   ];
 

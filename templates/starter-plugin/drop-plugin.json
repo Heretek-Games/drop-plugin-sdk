@@ -5,10 +5,7 @@
   "description": "Scaffolded Drop plugin template",
   "author": "Heretek Games",
   "apiVersion": 2,
-  "targets": [
-    "server",
-    "client"
-  ],
+  "targets": ["server", "client"],
   "trust": "trusted",
   "storageVersion": 1,
   "capabilities": [

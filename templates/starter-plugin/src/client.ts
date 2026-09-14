@@ -1,4 +1,8 @@
-import type { ClientPlugin, ClientPluginContext, LaunchContext } from "@droposs/plugin-sdk";
+import type {
+  ClientPlugin,
+  ClientPluginContext,
+  LaunchContext,
+} from "@droposs/plugin-sdk";
 
 export default class StarterClientPlugin implements ClientPlugin {
   metadata = {
@@ -39,7 +43,9 @@ export default class StarterClientPlugin implements ClientPlugin {
         icon: "heroicons:bolt",
         isDefault: false,
         execute: async (context: LaunchContext) => {
-          ctx.logger.info(`Starter quick launch triggered for ${context.gameTitle}`);
+          ctx.logger.info(
+            `Starter quick launch triggered for ${context.gameTitle}`,
+          );
         },
       },
     ]);
@@ -49,7 +55,9 @@ export default class StarterClientPlugin implements ClientPlugin {
       stage: "pre-launch:validate",
       order: 10,
       execute: async (context: LaunchContext) => {
-        ctx.logger.info(`Running pre-launch check for game ${context.gameId}...`);
+        ctx.logger.info(
+          `Running pre-launch check for game ${context.gameId}...`,
+        );
       },
     });
 

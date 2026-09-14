@@ -4,7 +4,11 @@ import { MockPluginContext } from "@droposs/plugin-sdk";
 import StarterPlugin from "../src/index.js";
 
 test("StarterPlugin registers /ping route and updates storage", async () => {
-  const ctx = new MockPluginContext("starter-plugin", ["routes", "storage", "events"]);
+  const ctx = new MockPluginContext("starter-plugin", [
+    "routes",
+    "storage",
+    "events",
+  ]);
   const plugin = new StarterPlugin();
 
   await plugin.init(ctx);

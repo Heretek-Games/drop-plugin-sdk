@@ -76,7 +76,10 @@ export class MockScopedGameFs implements ScopedGameFs {
       throw new Error(`Cannot backup non-existent file: ${relativePath}`);
     }
     const mockHash = "mock-sha256-" + content.length;
-    this.backups.set(key, { sha256: mockHash, content: new Uint8Array(content) });
+    this.backups.set(key, {
+      sha256: mockHash,
+      content: new Uint8Array(content),
+    });
     return mockHash;
   }
 
@@ -149,7 +152,8 @@ export class MockClientPluginWebSocket implements ClientPluginWebSocket {
 }
 
 export class MockClientServerRequest {
-  public calls: Array<{ method: HttpMethod; path: string; body?: unknown }> = [];
+  public calls: Array<{ method: HttpMethod; path: string; body?: unknown }> =
+    [];
   public responses = new Map<string, unknown>();
   /** Value returned when no canned response is registered. */
   public fallback: unknown = {};
@@ -177,8 +181,11 @@ export class MockClientServerRequest {
 }
 
 export class MockSystemCommand implements ClientPluginSystem {
-  public calls: Array<{ bin: string; args: string[]; options?: CommandOptions }> =
-    [];
+  public calls: Array<{
+    bin: string;
+    args: string[];
+    options?: CommandOptions;
+  }> = [];
   public responses = new Map<string, CommandResult>();
   /** Result returned when no canned response is registered. */
   public fallback: CommandResult = { code: 0, stdout: "", stderr: "" };

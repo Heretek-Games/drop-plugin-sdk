@@ -7,11 +7,7 @@ export default class StarterPlugin implements ServerPlugin {
     version: "1.0.0",
     apiVersion: 2,
     targets: ["server" as const, "client" as const],
-    capabilities: [
-      "routes" as const,
-      "storage" as const,
-      "events" as const,
-    ],
+    capabilities: ["routes" as const, "storage" as const, "events" as const],
   };
 
   async init(ctx: PluginContext): Promise<void> {

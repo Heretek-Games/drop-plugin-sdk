@@ -12,11 +12,7 @@ export type PluginTarget = "server" | "client";
 export type PluginCategory = "generic" | "metadata" | "storage" | "multiplayer";
 
 export type ServerCapability =
-  | "routes"
-  | "storage"
-  | "websocket"
-  | "events"
-  | "network";
+  "routes" | "storage" | "websocket" | "events" | "network";
 
 export type ClientCapability =
   | "ui:slot"
@@ -432,15 +428,11 @@ export interface MetadataPlugin extends ClientPlugin {
 }
 
 export interface StoragePlugin extends ClientPlugin {
-  getDepotStatus?(
-    depotId: string,
-  ): Promise<Record<string, unknown> | null>;
+  getDepotStatus?(depotId: string): Promise<Record<string, unknown> | null>;
 }
 
 export interface MultiplayerPlugin extends ClientPlugin {
-  getActiveRoom?(
-    gameId: string,
-  ): Promise<Record<string, unknown> | null>;
+  getActiveRoom?(gameId: string): Promise<Record<string, unknown> | null>;
 }
 
 export interface GenericPlugin extends ClientPlugin {}
