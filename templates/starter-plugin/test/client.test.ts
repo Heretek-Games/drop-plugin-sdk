@@ -5,6 +5,7 @@ import StarterClientPlugin from "../src/client.js";
 
 test("StarterClientPlugin registers play action, launch hook, and updates storage", async () => {
   const ctx = new MockClientPluginContext("starter-plugin", [
+    "ui:slot",
     "ui:play-action",
     "game:launch-hook",
     "client:storage",
@@ -12,6 +13,11 @@ test("StarterClientPlugin registers play action, launch hook, and updates storag
   const plugin = new StarterClientPlugin();
 
   await plugin.init(ctx);
+
+  // Verify UI slot registration
+  const panels = ctx.registeredSlots.get("game-detail:panels");
+  assert.equal(panels?.length, 1);
+  assert.equal(panels[0].label, "Starter Status");
 
   // Verify play action provider registration
   assert.equal(ctx.playActionProviders.length, 1);
