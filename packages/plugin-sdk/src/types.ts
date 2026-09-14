@@ -118,7 +118,7 @@ export interface RouteHandlerContext {
 export type RouteHandler = (
   event: any,
   context: RouteHandlerContext,
-) => unknown | Promise<unknown>;
+) => unknown;
 
 export interface PluginStorage {
   get<T>(key: string): Promise<T | null>;

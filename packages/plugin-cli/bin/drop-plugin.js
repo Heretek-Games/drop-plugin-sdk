@@ -13,6 +13,33 @@ import path from "node:path";
 const command = process.argv[2];
 const args = process.argv.slice(3);
 
+async function runValidate(dir) {
+  const manifestPath = path.join(path.resolve(process.cwd(), dir), "drop-plugin.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
+  const validation = await validateManifest(manifest);
+  if (!validation.valid) {
+    console.error("Validation failed:");
+    for (const err of validation.errors) {
+      console.error(`  - ${err}`);
+    }
+    process.exit(1);
+  }
+  console.log(`Manifest at ${manifestPath} is valid.`);
+}
+
+function printUsage() {
+  console.log(`Drop Plugin CLI (drop-plugin)
+
+Usage:
+  drop-plugin init [dir]         Initialize a new plugin from starter template
+  drop-plugin build [dir]        Bundle server/client entry points with esbuild and sign
+  drop-plugin sign [dir]         Calculate SHA-256 digests and sign drop-plugin.json
+  drop-plugin validate [dir]     Validate drop-plugin.json against official schema
+  drop-plugin test [dir]         Run plugin tests with Node test runner
+  drop-plugin pack [dir] [out]   Verify, sign, and package bundle into .dropplugin archive
+`);
+}
+
 async function main() {
   switch (command) {
     case "sign": {
@@ -52,43 +79,30 @@ async function main() {
       break;
     }
     case "validate": {
-      const dir = args[0] || ".";
-      const manifestPath = path.join(path.resolve(process.cwd(), dir), "drop-plugin.json");
-      const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
-      const validation = await validateManifest(manifest);
-      if (!validation.valid) {
-        console.error("Validation failed:");
-        for (const err of validation.errors) {
-          console.error(`  - ${err}`);
-        }
-        process.exit(1);
-      } else {
-        console.log(`Manifest at ${manifestPath} is valid.`);
-      }
+      await runValidate(args[0] || ".");
       break;
     }
     case "help":
     case "--help":
     case "-h":
-    default:
-      console.log(`Drop Plugin CLI (drop-plugin)
-
-Usage:
-  drop-plugin init [dir]         Initialize a new plugin from starter template
-  drop-plugin build [dir]        Bundle server/client entry points with esbuild and sign
-  drop-plugin sign [dir]         Calculate SHA-256 digests and sign drop-plugin.json
-  drop-plugin validate [dir]     Validate drop-plugin.json against official schema
-  drop-plugin test [dir]         Run plugin tests with Node test runner
-  drop-plugin pack [dir] [out]   Verify, sign, and package bundle into .dropplugin archive
-`);
-      if (command && command !== "help" && command !== "--help" && command !== "-h") {
+    default: {
+      printUsage();
+      const isHelp =
+        !command ||
+        command === "help" ||
+        command === "--help" ||
+        command === "-h";
+      if (!isHelp) {
         process.exit(1);
       }
       break;
+    }
   }
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error(`Error: ${err.message}`);
   process.exit(1);
-});
+}

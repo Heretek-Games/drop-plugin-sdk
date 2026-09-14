@@ -10,15 +10,15 @@ import type {
 } from "./types.js";
 
 export class MockPluginStorage implements PluginStorage {
-  private store = new Map<string, any>();
+  private readonly store = new Map<string, any>();
   private schemaVersion = 0;
 
   async get<T>(key: string): Promise<T | null> {
-    return this.store.has(key) ? JSON.parse(JSON.stringify(this.store.get(key))) : null;
+    return this.store.has(key) ? structuredClone(this.store.get(key)) : null;
   }
 
   async set<T>(key: string, value: T): Promise<void> {
-    this.store.set(key, JSON.parse(JSON.stringify(value)));
+    this.store.set(key, structuredClone(value));
   }
 
   async delete(key: string): Promise<void> {

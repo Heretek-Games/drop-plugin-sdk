@@ -2,6 +2,25 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { readdir, stat } from "node:fs/promises";
 
+async function directoryExists(dir: string): Promise<boolean> {
+  return Boolean(await stat(dir).catch(() => null));
+}
+
+async function collectTestFiles(
+  dir: string,
+  extension: ".js" | ".ts",
+): Promise<string[]> {
+  const entries = await readdir(dir, { recursive: true });
+  return entries
+    .filter(
+      (entry): entry is string =>
+        typeof entry === "string" &&
+        (entry.endsWith(`.test${extension}`) ||
+          entry.endsWith(`.spec${extension}`)),
+    )
+    .map((entry) => path.join(dir, entry));
+}
+
 export async function testPlugin(targetDir = "."): Promise<void> {
   const dir = path.resolve(process.cwd(), targetDir);
 
@@ -12,31 +31,16 @@ export async function testPlugin(targetDir = "."): Promise<void> {
 
   let testFiles: string[] = [];
   for (const cand of candidates) {
-    if (await stat(cand).catch(() => null)) {
-      const files = await readdir(cand, { recursive: true });
-      for (const f of files) {
-        if (
-          typeof f === "string" &&
-          (f.endsWith(".test.js") || f.endsWith(".spec.js"))
-        ) {
-          testFiles.push(path.join(cand, f));
-        }
-      }
+    if (await directoryExists(cand)) {
+      testFiles = await collectTestFiles(cand, ".js");
       if (testFiles.length > 0) break;
     }
   }
 
   if (testFiles.length === 0) {
     const testDir = path.join(dir, "test");
-    if (await stat(testDir).catch(() => null)) {
-      const files = await readdir(testDir, { recursive: true });
-      testFiles = files
-        .filter(
-          (f): f is string =>
-            typeof f === "string" &&
-            (f.endsWith(".test.ts") || f.endsWith(".spec.ts")),
-        )
-        .map((f) => path.join(testDir, f));
+    if (await directoryExists(testDir)) {
+      testFiles = await collectTestFiles(testDir, ".ts");
     }
   }
 

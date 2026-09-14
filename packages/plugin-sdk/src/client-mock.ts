@@ -10,7 +10,6 @@ import type {
   CommandResult,
   GameMenuItem,
   HttpMethod,
-  LaunchContext,
   LaunchHook,
   PlayAction,
   PluginLogger,
@@ -23,16 +22,14 @@ import type {
 } from "./types.js";
 
 export class MockClientPluginStorage implements ClientPluginStorage {
-  private store = new Map<string, any>();
+  private readonly store = new Map<string, any>();
 
   async get<T>(key: string): Promise<T | null> {
-    return this.store.has(key)
-      ? JSON.parse(JSON.stringify(this.store.get(key)))
-      : null;
+    return this.store.has(key) ? structuredClone(this.store.get(key)) : null;
   }
 
   async set<T>(key: string, value: T): Promise<void> {
-    this.store.set(key, JSON.parse(JSON.stringify(value)));
+    this.store.set(key, structuredClone(value));
   }
 
   async delete(key: string): Promise<void> {
@@ -49,7 +46,7 @@ export class MockScopedGameFs implements ScopedGameFs {
   public backups = new Map<string, { sha256: string; content: Uint8Array }>();
 
   private makeKey(gameId: string, path: string): string {
-    return `${gameId}:${path.replace(/\\/g, "/")}`;
+    return `${gameId}:${path.replaceAll("\\", "/")}`;
   }
 
   async readFile(gameId: string, relativePath: string): Promise<Uint8Array> {
@@ -252,7 +249,7 @@ export class MockClientPluginContext implements ClientPluginContext {
     this.serverRequestLog = new MockClientServerRequest();
     this.systemCommand = new MockSystemCommand();
     this.system = {
-      run: async (bin, args = [], options) => {
+      run: async (bin, args, options) => {
         this.assertCapability("system:command");
         return await this.systemCommand.run(bin, args, options);
       },

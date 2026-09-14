@@ -12,11 +12,15 @@ export interface PluginRpcOptions {
 export class PluginRpcClient {
   public readonly pluginId: string;
   public readonly baseUrl: string;
-  private ws?: ClientPluginWebSocket;
+  private readonly ws?: ClientPluginWebSocket;
 
   constructor(options: PluginRpcOptions) {
     this.pluginId = options.pluginId;
-    this.baseUrl = (options.baseUrl ?? "").replace(/\/+$/, "");
+    let baseUrl = options.baseUrl ?? "";
+    while (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.slice(0, -1);
+    }
+    this.baseUrl = baseUrl;
     this.ws = options.ws;
   }
 
@@ -33,7 +37,7 @@ export class PluginRpcClient {
       ...init,
       headers: {
         "Content-Type": "application/json",
-        ...(init.headers || {}),
+        ...init.headers,
       },
     });
 
@@ -45,7 +49,7 @@ export class PluginRpcClient {
     }
 
     const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
+    if (contentType?.includes("application/json")) {
       return (await response.json()) as T;
     }
     return (await response.text()) as unknown as T;
