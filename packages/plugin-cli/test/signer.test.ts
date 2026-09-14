@@ -9,6 +9,7 @@ import {
   validateManifest,
   buildPlugin,
   initPlugin,
+  verifyPlugin,
 } from "../dist/index.js";
 
 test("signPlugin computes digests and packPlugin creates .dropplugin", async () => {
@@ -223,4 +224,109 @@ test("initPlugin scaffolds a new plugin repository", async () => {
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test("signature covers the manifest so id/version/capability tampering is detected", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-test-"));
+  const key = "test-signing-key";
+  try {
+    const manifest = {
+      id: "verify-test",
+      name: "Verify Test",
+      version: "1.0.0",
+      apiVersion: 2,
+      targets: ["server"],
+      capabilities: ["routes"],
+      server: { entry: "index.js", capabilities: ["routes"] },
+    };
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify(manifest),
+      "utf-8",
+    );
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
+
+    await signPlugin(tmpDir, key);
+
+    const ok = await verifyPlugin(tmpDir, key);
+    assert.equal(ok.valid, true, ok.errors.join("; "));
+    assert.equal(ok.signed, true);
+
+    // Tamper with a manifest field the old signature did not cover.
+    const tampered = JSON.parse(
+      await fs.readFile(path.join(tmpDir, "drop-plugin.json"), "utf-8"),
+    );
+    tampered.capabilities = ["routes", "network"];
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify(tampered),
+      "utf-8",
+    );
+    const tamperedResult = await verifyPlugin(tmpDir, key);
+    assert.equal(tamperedResult.valid, false);
+    assert.ok(
+      tamperedResult.errors.some((e) => /signature verification failed/.test(e)),
+      tamperedResult.errors.join("; "),
+    );
+
+    // Tamper with a bundle file.
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export const x = 1;", "utf-8");
+    const fileResult = await verifyPlugin(tmpDir, key);
+    assert.equal(fileResult.valid, false);
+    assert.ok(fileResult.errors.some((e) => /checksum mismatch/.test(e)));
+
+    // Without the key, a signed manifest cannot be verified.
+    const noKey = await verifyPlugin(tmpDir);
+    assert.equal(noKey.valid, false);
+    assert.ok(noKey.errors.some((e) => /no signing key/.test(e)));
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin accepts an unsigned bundle whose checksums match", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-unsigned-"));
+  try {
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify({
+        id: "unsigned",
+        name: "Unsigned",
+        version: "1.0.0",
+        apiVersion: 2,
+        targets: ["server"],
+        capabilities: ["routes"],
+        server: { entry: "index.js", capabilities: ["routes"] },
+      }),
+      "utf-8",
+    );
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
+    await signPlugin(tmpDir);
+
+    const res = await verifyPlugin(tmpDir);
+    assert.equal(res.valid, true, res.errors.join("; "));
+    assert.equal(res.signed, false);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("schema accepts cloudsave:provider in server and client capabilities", async () => {
+  const manifest = {
+    id: "cloudsave-v2",
+    name: "Cloud Save v2",
+    version: "1.0.0",
+    apiVersion: 2,
+    targets: ["server", "client"],
+    server: {
+      entry: "index.js",
+      capabilities: ["routes", "cloudsave:provider"],
+    },
+    client: {
+      entry: "client.js",
+      capabilities: ["ui:slot", "cloudsave:provider"],
+    },
+  };
+  const res = await validateManifest(manifest);
+  assert.equal(res.valid, true, res.errors.join("; "));
 });

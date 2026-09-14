@@ -6,6 +6,7 @@ import {
   testPlugin,
   initPlugin,
   validateManifest,
+  verifyPlugin,
 } from "../dist/index.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -37,6 +38,7 @@ Usage:
   drop-plugin init [dir]         Initialize a new plugin from starter template
   drop-plugin build [dir]        Bundle server/client entry points with esbuild and sign
   drop-plugin sign [dir]         Calculate SHA-256 digests and sign drop-plugin.json
+  drop-plugin verify [dir]       Verify checksums and signature of a bundle
   drop-plugin validate [dir]     Validate drop-plugin.json against official schema
   drop-plugin test [dir]         Run plugin tests with Node test runner
   drop-plugin pack [dir] [out]   Verify, sign, and package bundle into .dropplugin archive
@@ -85,6 +87,21 @@ async function main() {
     }
     case "validate": {
       await runValidate(args[0] || ".");
+      break;
+    }
+    case "verify": {
+      const dir = args[0] || ".";
+      const res = await verifyPlugin(dir);
+      if (!res.valid) {
+        console.error("Verification failed:");
+        for (const err of res.errors) {
+          console.error(`  - ${err}`);
+        }
+        process.exit(1);
+      }
+      console.log(
+        `Bundle at ${dir} is valid (signature: ${res.signed ? "verified" : "none"}).`,
+      );
       break;
     }
     case "help":

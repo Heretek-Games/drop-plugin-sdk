@@ -158,7 +158,8 @@
               "events",
               "network",
               "metadata:provider",
-              "commerce:payment"
+              "commerce:payment",
+              "cloudsave:provider"
             ]
           }
         },
@@ -198,7 +199,8 @@
               "system:sidecar",
               "system:command",
               "metadata:provider",
-              "client:library-scan"
+              "client:library-scan",
+              "cloudsave:provider"
             ]
           }
         },
