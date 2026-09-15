@@ -4,15 +4,20 @@ import {
   MockPluginContext,
   MockClientPluginContext,
   PLUGIN_API_VERSION,
+  SIGNATURE_VERSION,
+  SUPPORTED_API_VERSIONS,
   assertManifestSupports,
   compareCapabilities,
   getManifestCapabilities,
   type PlayAction,
   type LaunchHook,
+  type ServerCapability,
 } from "../dist/index.js";
 
 test("PLUGIN_API_VERSION is 2", () => {
   assert.equal(PLUGIN_API_VERSION, 2);
+  assert.deepEqual([...SUPPORTED_API_VERSIONS], [1, 2]);
+  assert.equal(SIGNATURE_VERSION, 2);
 });
 
 test("MockPluginContext enforces capability gating", () => {
@@ -24,6 +29,40 @@ test("MockPluginContext enforces capability gating", () => {
   assert.throws(() => {
     ctx.registerWebSocket("my-channel", () => {});
   }, /missing required capability 'websocket'/);
+});
+
+test("MockPluginContext fails closed on storage without the storage capability", async () => {
+  const ctx = new MockPluginContext("no-storage", ["routes"]);
+
+  await assert.rejects(
+    () => ctx.storage.set("key", "value"),
+    /missing required capability 'storage'/,
+  );
+  await assert.rejects(
+    () => ctx.storage.get("key"),
+    /missing required capability 'storage'/,
+  );
+  await assert.rejects(
+    () => ctx.storage.listKeys(),
+    /missing required capability 'storage'/,
+  );
+  await assert.rejects(
+    () => ctx.storage.getSchemaVersion(),
+    /missing required capability 'storage'/,
+  );
+  await assert.rejects(
+    () => ctx.storage.setSchemaVersion(2),
+    /missing required capability 'storage'/,
+  );
+  await assert.rejects(
+    () => ctx.storage.delete("key"),
+    /missing required capability 'storage'/,
+  );
+
+  // The guarded storage stays empty because nothing can reach the backing map.
+  const allowed = new MockPluginContext("with-storage", ["storage"]);
+  await allowed.storage.set("key", "value");
+  assert.equal(await allowed.storage.get("key"), "value");
 });
 
 test("MockClientPluginContext registers UI slots and Play Actions", async () => {
@@ -60,8 +99,12 @@ test("MockClientPluginContext registers UI slots and Play Actions", async () => 
   // Scoped Game FS
   await ctx.gameFs.writeFile("game-123", "config.txt", "port=1234");
   assert.equal(await ctx.gameFs.fileExists("game-123", "config.txt"), true);
-  const hash = await ctx.gameFs.backupFile("game-123", "config.txt");
-  assert.ok(hash.startsWith("mock-sha256"));
+  const backupPath = await ctx.gameFs.backupFile("game-123", "config.txt");
+  assert.equal(backupPath, "config.txt.drop-backup");
+  assert.equal(
+    await ctx.gameFs.fileExists("game-123", "config.txt.drop-backup"),
+    true,
+  );
 
   // Overwrite and restore
   await ctx.gameFs.writeFile("game-123", "config.txt", "mutated");
@@ -75,6 +118,11 @@ test("MockClientPluginContext registers UI slots and Play Actions", async () => 
     await ctx.gameFs.readFile("game-123", "config.txt"),
   );
   assert.equal(restored, "port=1234");
+  // The desktop host removes the backup once it has been restored.
+  assert.equal(
+    await ctx.gameFs.fileExists("game-123", "config.txt.drop-backup"),
+    false,
+  );
 });
 
 test("MockClientPluginContext throws on undeclared capability", () => {
@@ -323,7 +371,9 @@ test("MockPluginContext and MockClientPluginContext register and gate CloudSaveP
   assert.equal(clientCtx.cloudSaveResolvers.length, 0);
 
   // Missing capability throws
-  const restrictedClient = new MockClientPluginContext("restricted", ["ui:slot"]);
+  const restrictedClient = new MockClientPluginContext("restricted", [
+    "ui:slot",
+  ]);
   assert.throws(() => {
     restrictedClient.registerCloudSaveResolver({
       id: "test",
@@ -376,7 +426,10 @@ test("client-scoped capabilities do not leak into the server target", () => {
 
   assert.deepEqual(getManifestCapabilities(manifest, "server"), ["routes"]);
   assert.throws(
-    () => assertManifestSupports(manifest, { server: ["ui:slot"] }),
+    () =>
+      assertManifestSupports(manifest, {
+        server: ["ui:slot"] as unknown as ServerCapability[],
+      }),
     /server: manifest is missing required ui:slot/,
   );
 });
@@ -417,7 +470,7 @@ test("compareCapabilities reports missing and extra", () => {
 test("assertManifestSupports catches the gamebox-style omission", () => {
   const manifest = {
     id: "drop-gamebox",
-    capabilities: ["routes", "storage", "network"],
+    capabilities: ["routes", "storage", "network"] as const,
   };
   assert.throws(
     () =>
@@ -431,7 +484,13 @@ test("assertManifestSupports catches the gamebox-style omission", () => {
 test("assertManifestSupports flags unused capabilities unless allowed", () => {
   const manifest = {
     id: "drop-gse",
-    capabilities: ["routes", "events", "storage", "websocket", "network"],
+    capabilities: [
+      "routes",
+      "events",
+      "storage",
+      "websocket",
+      "network",
+    ] as const,
   };
   const required = {
     server: ["routes", "events", "storage", "websocket"],
@@ -448,7 +507,7 @@ test("assertManifestSupports flags unused capabilities unless allowed", () => {
 test("assertManifestSupports accepts a matching manifest", () => {
   const manifest = {
     id: "ok",
-    capabilities: ["routes", "cloudsave:provider"],
+    capabilities: ["routes", "cloudsave:provider"] as const,
   };
   assert.doesNotThrow(() =>
     assertManifestSupports(manifest, {

@@ -5,6 +5,21 @@
  */
 export const PLUGIN_API_VERSION = 2;
 
+/**
+ * Plugin API versions Drop accepts at registration. `1` covers legacy
+ * single-target bundles, `2` the universal server/client manifest. Declaring
+ * an unsupported version (or omitting `apiVersion` entirely) fails closed.
+ */
+export const SUPPORTED_API_VERSIONS = [1, 2] as const;
+
+/**
+ * Current bundle signature scheme. `2` means `signature` covers the file
+ * aggregate plus the canonical manifest (everything except `signature`).
+ * Legacy bundles omit the marker and cover the file aggregate or, for
+ * single-file bundles, the entry checksum only.
+ */
+export const SIGNATURE_VERSION = 2;
+
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "ALL";
 
 export type PluginTarget = "server" | "client";
@@ -58,8 +73,12 @@ export interface PluginMetadata {
   homepage?: string;
   license?: string;
   builtin?: boolean;
-  /** Plugin API version the plugin was built against. */
-  apiVersion?: number;
+  /**
+   * Plugin API version the plugin was built against. Required: Drop rejects
+   * plugins that omit it rather than defaulting to the current version.
+   * Supported values are `SUPPORTED_API_VERSIONS` (`1` and `2`).
+   */
+  apiVersion: number;
   /** Trust tier. Defaults to "trusted". */
   trust?: PluginTrust;
   /** Declared storage schema version; drives `migrateStorage`. */
@@ -72,6 +91,12 @@ export interface PluginMetadata {
 
 export interface PluginManifest extends PluginMetadata {
   entry?: string;
+  /**
+   * Legacy alias for `client.entry`. Drop Desktop reads `client.entry`
+   * (defaulting to `bundle.js`) and never consults this field, so new
+   * manifests should declare the client entry inside the `client` block.
+   */
+  clientEntry?: string;
   /** SHA-256 of the entry file, hex. Verified before the bundle is imported. */
   checksum?: string;
   /**
@@ -82,19 +107,31 @@ export interface PluginManifest extends PluginMetadata {
    */
   files?: Record<string, string>;
   /**
-   * HMAC-SHA256 (hex) of `checksum`, keyed by `DROP_PLUGIN_SIGNING_KEY`.
-   * Set `DROP_PLUGIN_REQUIRE_SIGNATURE=true` to reject unsigned bundles.
+   * Signature scheme marker. Signed bundles built by the current CLI carry
+   * `SIGNATURE_VERSION` (2), meaning `signature` covers the file aggregate
+   * plus the canonical manifest. Absent on legacy bundles, whose signature
+   * covers the file aggregate or the entry checksum only.
+   */
+  signatureVersion?: number;
+  /**
+   * HMAC-SHA256 (hex) of the signature payload, keyed by
+   * `DROP_PLUGIN_SIGNING_KEY`. Set `DROP_PLUGIN_REQUIRE_SIGNATURE=true` to
+   * reject unsigned bundles.
    */
   signature?: string;
 
   // Universal v2 target declarations
   server?: {
     entry: string;
+    /** TypeScript/JavaScript source the CLI bundles into `entry`. */
+    source?: string;
     capabilities: ServerCapability[];
     storageVersion?: number;
   };
   client?: {
     entry: string;
+    /** TypeScript/JavaScript source the CLI bundles into `entry`. */
+    source?: string;
     css?: string;
     capabilities: ClientCapability[];
     slots?: Array<{ slot: UISlotName; component: string }>;
@@ -364,7 +401,15 @@ export interface ScopedGameFs {
     relativePath: string,
     data: Uint8Array | string,
   ): Promise<void>;
+  /**
+   * Copy a game file to `<relativePath>.drop-backup` inside the game
+   * directory. Resolves to the backup's path relative to the game root.
+   */
   backupFile(gameId: string, relativePath: string): Promise<string>;
+  /**
+   * Restore `<relativePath>` from its `.drop-backup` copy and remove the
+   * backup. Rejects when no backup exists.
+   */
   restoreFile(gameId: string, relativePath: string): Promise<void>;
   fileExists(gameId: string, relativePath: string): Promise<boolean>;
   deleteFile(gameId: string, relativePath: string): Promise<void>;
