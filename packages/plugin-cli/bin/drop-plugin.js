@@ -46,6 +46,22 @@ Usage:
 `);
 }
 
+async function runVerify(argv) {
+  const allowUnsigned = argv.includes("--allow-unsigned");
+  const dir = positionalArg(argv) || ".";
+  const res = await verifyPlugin(dir, undefined, { allowUnsigned });
+  if (!res.valid) {
+    console.error("Verification failed:");
+    for (const err of res.errors) {
+      console.error(`  - ${err}`);
+    }
+    process.exit(1);
+  }
+  console.log(
+    `Bundle at ${dir} is valid (signature: ${res.signed ? "verified" : "none"}).`,
+  );
+}
+
 async function main() {
   switch (command) {
     case "sign": {
@@ -91,19 +107,7 @@ async function main() {
       break;
     }
     case "verify": {
-      const allowUnsigned = args.includes("--allow-unsigned");
-      const dir = args.find((arg) => !arg.startsWith("-")) || ".";
-      const res = await verifyPlugin(dir, undefined, { allowUnsigned });
-      if (!res.valid) {
-        console.error("Verification failed:");
-        for (const err of res.errors) {
-          console.error(`  - ${err}`);
-        }
-        process.exit(1);
-      }
-      console.log(
-        `Bundle at ${dir} is valid (signature: ${res.signed ? "verified" : "none"}).`,
-      );
+      await runVerify(args);
       break;
     }
     case "help":

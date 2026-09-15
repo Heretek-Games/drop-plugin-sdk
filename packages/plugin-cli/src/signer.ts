@@ -22,7 +22,7 @@ function stableStringify(value: unknown): string {
     return `[${value.map(stableStringify).join(",")}]`;
   }
   const record = value as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
+  const keys = Object.keys(record).sort((a, b) => a.localeCompare(b, "en"));
   return `{${keys
     .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
     .join(",")}}`;
@@ -290,30 +290,19 @@ export async function verifyPlugin(
       errors.push("manifest is signed but no signing key is available");
     } else {
       const filesAggregate = await computeFilesAggregate(bundleDir, files);
-      let payload: string | undefined;
-      let payloadError: string | undefined;
-      if (manifest.signatureVersion === SIGNATURE_VERSION) {
-        if (!manifest.files) {
-          payloadError = "signatureVersion 2 requires manifest file checksums";
-        } else {
-          payload = signaturePayloadV2(filesAggregate, manifest);
-        }
-      } else if (manifest.signatureVersion !== undefined) {
-        payloadError = `unsupported signatureVersion: ${manifest.signatureVersion}`;
-      } else if (manifest.files) {
-        payload = filesAggregate;
-      } else if (manifest.checksum && entry) {
-        payload = sha256Hex(await readFile(path.join(bundleDir, entry)));
-      } else {
-        payloadError =
-          "legacy signature has neither file checksums nor an entry checksum";
-      }
-
-      if (payload === undefined) {
-        errors.push(payloadError ?? "unable to reconstruct signature payload");
+      const resolved = await resolveSignedPayload(
+        bundleDir,
+        manifest,
+        filesAggregate,
+        entry,
+      );
+      if (resolved.payload === undefined) {
+        errors.push(
+          resolved.error ?? "unable to reconstruct signature payload",
+        );
       } else {
         const expected = createHmac("sha256", key)
-          .update(payload)
+          .update(resolved.payload)
           .digest("hex");
         if (safeEqualHex(expected, manifest.signature)) {
           signed = true;
@@ -329,6 +318,41 @@ export async function verifyPlugin(
   }
 
   return { valid: errors.length === 0, signed, errors };
+}
+
+/**
+ * Reconstruct the payload a signature covers, depending on the scheme:
+ * v2 covers the file aggregate plus the canonical manifest; legacy bundles
+ * cover the file aggregate, or the entry checksum for single-file bundles.
+ */
+async function resolveSignedPayload(
+  bundleDir: string,
+  manifest: Record<string, any>,
+  filesAggregate: string,
+  entry: string | undefined,
+): Promise<{ payload?: string; error?: string }> {
+  if (manifest.signatureVersion === SIGNATURE_VERSION) {
+    if (!manifest.files) {
+      return { error: "signatureVersion 2 requires manifest file checksums" };
+    }
+    return { payload: signaturePayloadV2(filesAggregate, manifest) };
+  }
+  if (manifest.signatureVersion !== undefined) {
+    return {
+      error: `unsupported signatureVersion: ${manifest.signatureVersion}`,
+    };
+  }
+  if (manifest.files) {
+    return { payload: filesAggregate };
+  }
+  if (manifest.checksum && entry) {
+    return {
+      payload: sha256Hex(await readFile(path.join(bundleDir, entry))),
+    };
+  }
+  return {
+    error: "legacy signature has neither file checksums nor an entry checksum",
+  };
 }
 
 export async function packPlugin(
