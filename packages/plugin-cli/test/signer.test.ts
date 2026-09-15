@@ -369,6 +369,168 @@ test("verifyPlugin still accepts legacy files-only signatures", async () => {
   }
 });
 
+test("verifyPlugin accepts legacy single-file bundles with only an entry checksum", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-entry-"));
+  const key = "legacy-entry-key";
+  try {
+    const content = "export {};";
+    await fs.writeFile(path.join(tmpDir, "index.js"), content, "utf-8");
+    const entryDigest = createHash("sha256").update(content).digest("hex");
+    const legacySignature = createHmac("sha256", key)
+      .update(entryDigest)
+      .digest("hex");
+
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify({
+        id: "legacy-entry",
+        name: "Legacy Entry",
+        version: "1.0.0",
+        apiVersion: 2,
+        targets: ["server"],
+        capabilities: ["routes"],
+        server: { entry: "index.js", capabilities: ["routes"] },
+        checksum: entryDigest,
+        signature: legacySignature,
+      }),
+      "utf-8",
+    );
+
+    const res = await verifyPlugin(tmpDir, key);
+    assert.equal(res.valid, true, res.errors.join("; "));
+    assert.equal(res.signed, true);
+
+    // Without a key the legacy signature cannot be verified.
+    const noKey = await verifyPlugin(tmpDir);
+    assert.equal(noKey.valid, false);
+    assert.ok(noKey.errors.some((e) => /no signing key/.test(e)));
+
+    // Tampering with the entry invalidates both the checksum and the signature.
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export const x = 1;");
+    const tampered = await verifyPlugin(tmpDir, key);
+    assert.equal(tampered.valid, false);
+    assert.ok(
+      tampered.errors.some((e) => /entry checksum mismatch/.test(e)),
+      tampered.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin rejects multi-file legacy bundles without a files map", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-multi-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "lib"), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
+    await fs.writeFile(
+      path.join(tmpDir, "lib", "a.js"),
+      "export const a = 1;",
+      "utf-8",
+    );
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify({
+        id: "legacy-multi",
+        name: "Legacy Multi",
+        version: "1.0.0",
+        apiVersion: 2,
+        targets: ["server"],
+        capabilities: ["routes"],
+        server: { entry: "index.js", capabilities: ["routes"] },
+      }),
+      "utf-8",
+    );
+
+    const res = await verifyPlugin(tmpDir, undefined, { allowUnsigned: true });
+    assert.equal(res.valid, false);
+    assert.ok(
+      res.errors.some((e) =>
+        /multiple code files but no 'files' checksums/.test(e),
+      ),
+      res.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin requires every code file to be covered by the files map", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-cover-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "lib"), { recursive: true });
+    const entry = "export {};";
+    await fs.writeFile(path.join(tmpDir, "index.js"), entry, "utf-8");
+    await fs.writeFile(
+      path.join(tmpDir, "lib", "a.js"),
+      "export const a = 1;",
+      "utf-8",
+    );
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify({
+        id: "uncovered",
+        name: "Uncovered",
+        version: "1.0.0",
+        apiVersion: 2,
+        targets: ["server"],
+        capabilities: ["routes"],
+        server: { entry: "index.js", capabilities: ["routes"] },
+        checksum: createHash("sha256").update(entry).digest("hex"),
+        files: {
+          "index.js": createHash("sha256").update(entry).digest("hex"),
+        },
+      }),
+      "utf-8",
+    );
+
+    const res = await verifyPlugin(tmpDir, undefined, { allowUnsigned: true });
+    assert.equal(res.valid, false);
+    assert.ok(
+      res.errors.some((e) =>
+        /'lib\/a\.js' is not covered by the manifest 'files' checksums/.test(e),
+      ),
+      res.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("signPlugin covers root state.json and schema.json but ignores drop-plugin.json", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "ignore-root-"));
+  try {
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify({
+        id: "ignore-root",
+        name: "Ignore Root",
+        version: "1.0.0",
+        apiVersion: 2,
+        targets: ["server"],
+        capabilities: ["routes"],
+        server: { entry: "index.js", capabilities: ["routes"] },
+      }),
+      "utf-8",
+    );
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
+    await fs.writeFile(path.join(tmpDir, "state.json"), "{}", "utf-8");
+    await fs.writeFile(path.join(tmpDir, "schema.json"), "{}", "utf-8");
+
+    await signPlugin(tmpDir);
+
+    const signed = JSON.parse(
+      await fs.readFile(path.join(tmpDir, "drop-plugin.json"), "utf-8"),
+    );
+    assert.ok(signed.files["index.js"]);
+    assert.ok(signed.files["state.json"]);
+    assert.ok(signed.files["schema.json"]);
+    assert.equal(signed.files["drop-plugin.json"], undefined);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test("v2 signature matches the cross-repo fixture vector", async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-fixture-"));
   const key = "fixture-signing-key";

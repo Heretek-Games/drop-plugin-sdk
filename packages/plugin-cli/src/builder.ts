@@ -55,7 +55,13 @@ export async function buildPlugin(
       format: "esm",
       sourcemap: options.sourcemap ?? true,
       minify: options.minify ?? false,
-      external: ["@droposs/plugin-sdk", "@drop/plugin-sdk", "h3", "pino"],
+      external: [
+        "@drop-oss/plugin-sdk",
+        "@droposs/plugin-sdk",
+        "@drop/plugin-sdk",
+        "h3",
+        "pino",
+      ],
     });
     serverBuilt = true;
   }
@@ -91,7 +97,12 @@ export async function buildPlugin(
       format: "esm",
       sourcemap: options.sourcemap ?? true,
       minify: options.minify ?? false,
-      external: ["vue", "@droposs/plugin-sdk", "@drop/plugin-sdk"],
+      external: [
+        "vue",
+        "@drop-oss/plugin-sdk",
+        "@droposs/plugin-sdk",
+        "@drop/plugin-sdk",
+      ],
     });
     clientBuilt = true;
   }
