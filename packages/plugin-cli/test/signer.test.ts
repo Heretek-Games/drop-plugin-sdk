@@ -434,3 +434,79 @@ test("schema accepts cloudsave:provider in server and client capabilities", asyn
   const res = await validateManifest(manifest);
   assert.equal(res.valid, true, res.errors.join("; "));
 });
+
+async function writeFixtureBundle(
+  prefix: string,
+  id: string,
+  name: string,
+): Promise<{ tmpDir: string; manifestPath: string; before: string }> {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  await fs.writeFile(
+    path.join(tmpDir, "drop-plugin.json"),
+    JSON.stringify({
+      id,
+      name,
+      version: "1.0.0",
+      apiVersion: 2,
+      targets: ["server"],
+      server: { entry: "index.js", capabilities: ["routes"] },
+    }),
+    "utf-8",
+  );
+  await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
+  const manifestPath = path.join(tmpDir, "drop-plugin.json");
+  const before = await fs.readFile(manifestPath, "utf-8");
+  return { tmpDir, manifestPath, before };
+}
+
+test("signPlugin --out-manifest leaves the source manifest untouched", async () => {
+  const key = "out-manifest-key";
+  const { tmpDir, manifestPath, before } = await writeFixtureBundle(
+    "sign-out-",
+    "out-manifest",
+    "Out Manifest",
+  );
+  try {
+    const outPath = path.join(tmpDir, "derived", "drop-plugin.json");
+    await fs.mkdir(path.dirname(outPath), { recursive: true });
+    const res = await signPlugin(tmpDir, key, true, { outManifest: outPath });
+    assert.equal(res.signed, true);
+    assert.equal(await fs.readFile(manifestPath, "utf-8"), before);
+
+    const derived = JSON.parse(await fs.readFile(outPath, "utf-8"));
+    assert.equal(derived.signatureVersion, 2);
+    assert.ok(derived.signature);
+    assert.ok(derived.files["index.js"]);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("packPlugin leaves the source manifest untouched", async () => {
+  const outDir = await fs.mkdtemp(path.join(os.tmpdir(), "pack-out-"));
+  const key = "pack-clean-key";
+  const previousKey = process.env.DROP_PLUGIN_SIGNING_KEY;
+  process.env.DROP_PLUGIN_SIGNING_KEY = key;
+  const { tmpDir, manifestPath, before } = await writeFixtureBundle(
+    "pack-clean-",
+    "pack-clean",
+    "Pack Clean",
+  );
+  try {
+    const res = await packPlugin(tmpDir, outDir);
+    assert.equal(await fs.readFile(manifestPath, "utf-8"), before);
+
+    const archive = JSON.parse(await fs.readFile(res.packagePath, "utf-8"));
+    assert.equal(archive.manifest.signatureVersion, 2);
+    assert.ok(archive.manifest.signature);
+    assert.ok(archive.manifest.files["index.js"]);
+  } finally {
+    if (previousKey === undefined) {
+      delete process.env.DROP_PLUGIN_SIGNING_KEY;
+    } else {
+      process.env.DROP_PLUGIN_SIGNING_KEY = previousKey;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+    await fs.rm(outDir, { recursive: true, force: true });
+  }
+});
