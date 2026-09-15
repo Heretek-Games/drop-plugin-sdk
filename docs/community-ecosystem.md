@@ -70,5 +70,5 @@ Plugins such as `drop-zerotier` and `drop-federation` manage virtual private net
 To preserve compatibility and ease upstream maintenance:
 
 - Drop core platform must contain **zero** references to specific games, piracy groups, scene releases, emulators, or VPN vendors.
-- All specialized behaviors live in external plugins built against `@droposs/plugin-sdk`.
+- All specialized behaviors live in external plugins built against `@drop-oss/plugin-sdk`.
 - Drop core provides only the generic runtime SPI: HTTP routing, WebSocket dispatching, scoped storage, launch hooks, and UI slots.

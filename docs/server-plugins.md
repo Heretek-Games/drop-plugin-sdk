@@ -13,7 +13,7 @@ import type {
   PluginContext,
   ServerPlugin,
   PluginStorage,
-} from "@droposs/plugin-sdk";
+} from "@drop-oss/plugin-sdk";
 
 export default class ExampleServerPlugin implements ServerPlugin {
   metadata = {

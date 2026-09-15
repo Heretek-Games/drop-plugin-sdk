@@ -1,6 +1,6 @@
 # Getting Started with Drop Plugins
 
-Welcome to the Drop Plugin Developer Guide. This guide walks you through creating, testing, building, and deploying an extension for the [Drop](https://github.com/Drop-OSS/drop) game distribution platform using the official `@droposs/plugin-sdk` toolchain.
+Welcome to the Drop Plugin Developer Guide. This guide walks you through creating, testing, building, and deploying an extension for the [Drop](https://github.com/Drop-OSS/drop) game distribution platform using the official `@drop-oss/plugin-sdk` toolchain.
 
 ---
 
@@ -14,11 +14,11 @@ Welcome to the Drop Plugin Developer Guide. This guide walks you through creatin
 
 ## 1. Scaffolding a New Plugin
 
-Use the Drop Plugin CLI (`@droposs/plugin-cli`) to scaffold a complete plugin repository with TypeScript, build configuration, schema validation, and unit tests:
+Use the Drop Plugin CLI (`@drop-oss/plugin-cli`) to scaffold a complete plugin repository with TypeScript, build configuration, schema validation, and unit tests:
 
 ```bash
 # Scaffold a new plugin named "my-plugin"
-npx @droposs/plugin-cli init my-plugin
+npx @drop-oss/plugin-cli init my-plugin
 
 cd my-plugin
 pnpm install
@@ -47,7 +47,7 @@ Server plugins run within Drop's Nitro / Node.js runtime. They can register HTTP
 In `src/index.ts`:
 
 ```typescript
-import type { PluginContext, ServerPlugin } from "@droposs/plugin-sdk";
+import type { PluginContext, ServerPlugin } from "@drop-oss/plugin-sdk";
 
 export default class MyPlugin implements ServerPlugin {
   metadata = {
@@ -94,7 +94,7 @@ import type {
   ClientPlugin,
   ClientPluginContext,
   LaunchContext,
-} from "@droposs/plugin-sdk";
+} from "@drop-oss/plugin-sdk";
 
 export default class MyClientPlugin implements ClientPlugin {
   metadata = {
@@ -167,7 +167,7 @@ import assert from "node:assert/strict";
 import {
   MockPluginContext,
   MockClientPluginContext,
-} from "@droposs/plugin-sdk";
+} from "@drop-oss/plugin-sdk";
 import MyPlugin from "../src/index.js";
 import MyClientPlugin from "../src/client.js";
 
@@ -180,8 +180,8 @@ test("MyPlugin server registers route and storage", async () => {
   const plugin = new MyPlugin();
   await plugin.init(ctx);
 
-  assert.equal(ctx.routes.has("GET:/status"), true);
-  const handler = ctx.routes.get("GET:/status")!;
+  assert.equal(ctx.routes.has("GET /status"), true);
+  const handler = ctx.routes.get("GET /status")!;
   const response = (await handler({} as any, { params: {}, query: {} })) as any;
   assert.equal(response.status, "online");
 });
@@ -195,8 +195,8 @@ test("MyClientPlugin registers UI slots and play actions", async () => {
   const plugin = new MyClientPlugin();
   await plugin.init(ctx);
 
-  assert.equal(ctx.slots["game-detail:panels"].length, 1);
-  assert.equal(ctx.playActions.length, 1);
+  assert.equal(ctx.registeredSlots.get("game-detail:panels")?.length, 1);
+  assert.equal(ctx.playActionProviders.length, 1);
 });
 ```
 
@@ -218,7 +218,7 @@ Bundle your TypeScript source into optimized, standalone ESM bundles:
 npx drop-plugin build .
 ```
 
-This produces `dist/server.js` and `dist/client.js` and updates SHA-256 digests in `drop-plugin.json`.
+This produces the entry points declared in `drop-plugin.json` (`server.entry` / `client.entry`, e.g. `dist/src/index.js` and `dist/src/client.js`) and writes the SHA-256 digests into `drop-plugin.json`. Pass `--out-manifest <path>` to keep the derived digests out of the source manifest.
 
 ### Step B: Validate
 

@@ -1,6 +1,6 @@
 # Testing Drop Plugins
 
-Unit testing is an essential part of the Drop plugin ecosystem. Because plugins execute in-process and interact with system resources, `@droposs/plugin-sdk` provides test harnesses (`MockPluginContext` and `MockClientPluginContext`) that replicate runtime contracts and security boundaries without requiring a full Drop server or desktop application.
+Unit testing is an essential part of the Drop plugin ecosystem. Because plugins execute in-process and interact with system resources, `@drop-oss/plugin-sdk` provides test harnesses (`MockPluginContext` and `MockClientPluginContext`) that replicate runtime contracts and security boundaries without requiring a full Drop server or desktop application.
 
 ---
 
@@ -18,7 +18,7 @@ Unit testing is an essential part of the Drop plugin ecosystem. Because plugins 
 ```typescript
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MockPluginContext } from "@droposs/plugin-sdk";
+import { MockPluginContext } from "@drop-oss/plugin-sdk";
 import MyServerPlugin from "../src/index.js";
 
 test("MyServerPlugin initializes and serves routes", async () => {
@@ -30,10 +30,10 @@ test("MyServerPlugin initializes and serves routes", async () => {
   await plugin.init(ctx);
 
   // 3. Verify route registration
-  assert.equal(ctx.routes.has("GET:/status"), true);
+  assert.equal(ctx.routes.has("GET /status"), true);
 
   // 4. Execute the route handler directly
-  const handler = ctx.routes.get("GET:/status")!;
+  const handler = ctx.routes.get("GET /status")!;
   const response = (await handler({} as any, {
     params: {},
     query: {},
@@ -50,15 +50,18 @@ test("MyServerPlugin initializes and serves routes", async () => {
 
 ### Example: Verifying Capability Gating
 
+`ctx.storage` is always defined, but every storage method fails closed when the
+`storage` capability was not declared (mirroring Drop core's `guardStorage`):
+
 ```typescript
 test("Server plugin fails closed on undeclared capabilities", async () => {
   // Context without 'storage' capability
   const ctx = new MockPluginContext("restricted-plugin", ["routes"]);
 
-  assert.throws(() => {
-    // Attempting to access storage throws
-    ctx.storage.set("key", "value");
-  }, /missing required capability 'storage'/);
+  await assert.rejects(
+    () => ctx.storage.set("key", "value"),
+    /missing required capability 'storage'/,
+  );
 });
 ```
 
@@ -78,7 +81,7 @@ test("Server plugin fails closed on undeclared capabilities", async () => {
 ```typescript
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MockClientPluginContext } from "@droposs/plugin-sdk";
+import { MockClientPluginContext } from "@drop-oss/plugin-sdk";
 import MyClientPlugin from "../src/client.js";
 
 test("Client plugin stages file in pre-launch hook", async () => {
