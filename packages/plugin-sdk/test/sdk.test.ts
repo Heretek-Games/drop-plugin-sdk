@@ -4,6 +4,9 @@ import {
   MockPluginContext,
   MockClientPluginContext,
   PLUGIN_API_VERSION,
+  assertManifestSupports,
+  compareCapabilities,
+  getManifestCapabilities,
   type PlayAction,
   type LaunchHook,
 } from "../dist/index.js";
@@ -328,4 +331,128 @@ test("MockPluginContext and MockClientPluginContext register and gate CloudSaveP
       resolveSavePaths: async () => [],
     });
   }, /missing required capability 'cloudsave:provider'/);
+});
+
+test("getManifestCapabilities resolves server from top-level only", () => {
+  const manifest = {
+    id: "multi",
+    capabilities: ["routes", "storage"] as const,
+    server: { entry: "s.js", capabilities: ["cloudsave:provider"] as const },
+    client: { entry: "c.js", capabilities: ["ui:slot"] as const },
+  };
+  assert.deepEqual(getManifestCapabilities(manifest, "server").sort(), [
+    "routes",
+    "storage",
+  ]);
+});
+
+test("server.capabilities-only declarations are not supported", () => {
+  const manifest = {
+    id: "wrong-server-scope",
+    capabilities: ["routes"] as const,
+    server: { entry: "s.js", capabilities: ["network"] as const },
+  };
+
+  assert.deepEqual(getManifestCapabilities(manifest, "server"), ["routes"]);
+  assert.ok(
+    !getManifestCapabilities(manifest, "server").includes("network"),
+    "server.capabilities must not be treated as granted",
+  );
+  assert.throws(
+    () =>
+      assertManifestSupports(manifest, {
+        server: ["routes", "network"],
+      }),
+    /server: manifest is missing required network/,
+  );
+});
+
+test("client-scoped capabilities do not leak into the server target", () => {
+  const manifest = {
+    id: "wrong-client-scope",
+    capabilities: ["routes"] as const,
+    client: { entry: "c.js", capabilities: ["ui:slot"] as const },
+  };
+
+  assert.deepEqual(getManifestCapabilities(manifest, "server"), ["routes"]);
+  assert.throws(
+    () => assertManifestSupports(manifest, { server: ["ui:slot"] }),
+    /server: manifest is missing required ui:slot/,
+  );
+});
+
+test("getManifestCapabilities resolves client from client.capabilities with top-level fallback", () => {
+  const scoped = {
+    id: "scoped-client",
+    capabilities: ["routes"] as const,
+    client: { entry: "c.js", capabilities: ["ui:slot"] as const },
+  };
+  assert.deepEqual(getManifestCapabilities(scoped, "client"), ["ui:slot"]);
+
+  const topLevelOnly = {
+    id: "legacy-client",
+    capabilities: ["ui:slot"] as const,
+  };
+  assert.deepEqual(getManifestCapabilities(topLevelOnly, "client"), [
+    "ui:slot",
+  ]);
+
+  const emptyScoped = {
+    id: "empty-client",
+    capabilities: ["ui:slot"] as const,
+    client: { entry: "c.js", capabilities: [] as const },
+  };
+  assert.deepEqual(getManifestCapabilities(emptyScoped, "client"), []);
+});
+
+test("compareCapabilities reports missing and extra", () => {
+  const { missing, extra } = compareCapabilities(
+    ["routes", "cloudsave:provider"],
+    ["routes", "network"],
+  );
+  assert.deepEqual(missing, ["cloudsave:provider"]);
+  assert.deepEqual(extra, ["network"]);
+});
+
+test("assertManifestSupports catches the gamebox-style omission", () => {
+  const manifest = {
+    id: "drop-gamebox",
+    capabilities: ["routes", "storage", "network"],
+  };
+  assert.throws(
+    () =>
+      assertManifestSupports(manifest, {
+        server: ["routes", "storage", "cloudsave:provider"],
+      }),
+    /failed capability conformance: server: manifest is missing required cloudsave:provider/,
+  );
+});
+
+test("assertManifestSupports flags unused capabilities unless allowed", () => {
+  const manifest = {
+    id: "drop-gse",
+    capabilities: ["routes", "events", "storage", "websocket", "network"],
+  };
+  const required = {
+    server: ["routes", "events", "storage", "websocket"],
+  } as const;
+  assert.throws(
+    () => assertManifestSupports(manifest, required),
+    /declares unused network/,
+  );
+  assert.doesNotThrow(() =>
+    assertManifestSupports(manifest, required, { allowExtra: true }),
+  );
+});
+
+test("assertManifestSupports accepts a matching manifest", () => {
+  const manifest = {
+    id: "ok",
+    capabilities: ["routes", "cloudsave:provider"],
+  };
+  assert.doesNotThrow(() =>
+    assertManifestSupports(manifest, {
+      server: ["routes", "cloudsave:provider"],
+    }),
+  );
 });
