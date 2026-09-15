@@ -1,4 +1,4 @@
-import type { PluginContext, ServerPlugin } from "@droposs/plugin-sdk";
+import type { PluginContext, ServerPlugin } from "@drop-oss/plugin-sdk";
 
 export default class StarterPlugin implements ServerPlugin {
   metadata = {

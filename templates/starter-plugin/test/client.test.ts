@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MockClientPluginContext } from "@droposs/plugin-sdk";
+import { MockClientPluginContext } from "@drop-oss/plugin-sdk";
 import StarterClientPlugin from "../src/client.js";
 
 test("StarterClientPlugin registers play action, launch hook, and updates storage", async () => {

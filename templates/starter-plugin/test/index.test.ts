@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MockPluginContext } from "@droposs/plugin-sdk";
+import { MockPluginContext } from "@drop-oss/plugin-sdk";
 import StarterPlugin from "../src/index.js";
 
 test("StarterPlugin registers /ping route and updates storage", async () => {
