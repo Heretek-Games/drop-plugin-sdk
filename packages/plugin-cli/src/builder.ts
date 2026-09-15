@@ -8,6 +8,8 @@ export interface BuildOptions {
   sourcemap?: boolean;
   sign?: boolean;
   signingKey?: string;
+  /** Write derived manifest fields here instead of the source manifest. */
+  outManifest?: string;
 }
 
 export async function buildPlugin(
@@ -96,7 +98,9 @@ export async function buildPlugin(
 
   // 3. Automatically re-sign the plugin bundle after building
   if (options.sign !== false) {
-    await signPlugin(dir, options.signingKey);
+    await signPlugin(dir, options.signingKey, true, {
+      outManifest: options.outManifest,
+    });
   }
 
   return { serverBuilt, clientBuilt };
