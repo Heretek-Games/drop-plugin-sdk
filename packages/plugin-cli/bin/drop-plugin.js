@@ -14,6 +14,23 @@ import path from "node:path";
 const command = process.argv[2];
 const args = process.argv.slice(3);
 
+/** Reads `--flag value`; exits with an error when the value is missing. */
+function readFlagValue(argv, flag) {
+  const index = argv.indexOf(flag);
+  if (index === -1) return undefined;
+  const value = argv[index + 1];
+  if (!value || value.startsWith("-")) {
+    console.error(`${flag} requires a value`);
+    process.exit(1);
+  }
+  return value;
+}
+
+/** First positional argument, ignoring flags and their values. */
+function positionalArg(argv, flagValues = []) {
+  return argv.find((arg) => !arg.startsWith("-") && !flagValues.includes(arg));
+}
+
 async function runValidate(dir) {
   const manifestPath = path.join(
     path.resolve(process.cwd(), dir),
@@ -37,7 +54,9 @@ function printUsage() {
 Usage:
   drop-plugin init [dir]         Initialize a new plugin from starter template
   drop-plugin build [dir]        Bundle server/client entry points with esbuild and sign
+                                 (--out-manifest <path> keeps the source manifest clean)
   drop-plugin sign [dir]         Calculate SHA-256 digests and sign drop-plugin.json
+                                 (--out-manifest <path> writes the derived manifest elsewhere)
   drop-plugin verify [dir]       Verify checksums and signature of a bundle
                                  (--allow-unsigned accepts bundles without a signature)
   drop-plugin validate [dir]     Validate drop-plugin.json against official schema
@@ -49,10 +68,12 @@ Usage:
 async function main() {
   switch (command) {
     case "sign": {
-      const dir = args[0] || ".";
-      const res = await signPlugin(dir);
+      const outManifest = readFlagValue(args, "--out-manifest");
+      const dir = positionalArg(args, [outManifest]) || ".";
+      const res = await signPlugin(dir, undefined, true, { outManifest });
       console.log(
-        `Signed bundle at ${dir}: ${res.fileCount} files verified (signature: ${res.signed ? "yes" : "no"})`,
+        `Signed bundle at ${dir}: ${res.fileCount} files verified (signature: ${res.signed ? "yes" : "no"})` +
+          (outManifest ? `; manifest written to ${outManifest}` : ""),
       );
       break;
     }
@@ -66,8 +87,9 @@ async function main() {
       break;
     }
     case "build": {
-      const dir = args[0] || ".";
-      const res = await buildPlugin(dir);
+      const outManifest = readFlagValue(args, "--out-manifest");
+      const dir = positionalArg(args, [outManifest]) || ".";
+      const res = await buildPlugin(dir, { outManifest });
       console.log(
         `Built plugin at ${dir} (server: ${res.serverBuilt ? "yes" : "no"}, client: ${res.clientBuilt ? "yes" : "no"})`,
       );
