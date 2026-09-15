@@ -333,21 +333,76 @@ test("MockPluginContext and MockClientPluginContext register and gate CloudSaveP
   }, /missing required capability 'cloudsave:provider'/);
 });
 
-test("getManifestCapabilities merges top-level and scoped capabilities", () => {
+test("getManifestCapabilities resolves server from top-level only", () => {
   const manifest = {
     id: "multi",
     capabilities: ["routes", "storage"] as const,
     server: { entry: "s.js", capabilities: ["cloudsave:provider"] as const },
     client: { entry: "c.js", capabilities: ["ui:slot"] as const },
   };
-  assert.deepEqual(
-    getManifestCapabilities(manifest, "server").sort(),
-    ["cloudsave:provider", "routes", "storage"],
+  assert.deepEqual(getManifestCapabilities(manifest, "server").sort(), [
+    "routes",
+    "storage",
+  ]);
+});
+
+test("server.capabilities-only declarations are not supported", () => {
+  const manifest = {
+    id: "wrong-server-scope",
+    capabilities: ["routes"] as const,
+    server: { entry: "s.js", capabilities: ["network"] as const },
+  };
+
+  assert.deepEqual(getManifestCapabilities(manifest, "server"), ["routes"]);
+  assert.ok(
+    !getManifestCapabilities(manifest, "server").includes("network"),
+    "server.capabilities must not be treated as granted",
   );
-  assert.deepEqual(
-    getManifestCapabilities(manifest, "client").sort(),
-    ["routes", "storage", "ui:slot"],
+  assert.throws(
+    () =>
+      assertManifestSupports(manifest, {
+        server: ["routes", "network"],
+      }),
+    /server: manifest is missing required network/,
   );
+});
+
+test("client-scoped capabilities do not leak into the server target", () => {
+  const manifest = {
+    id: "wrong-client-scope",
+    capabilities: ["routes"] as const,
+    client: { entry: "c.js", capabilities: ["ui:slot"] as const },
+  };
+
+  assert.deepEqual(getManifestCapabilities(manifest, "server"), ["routes"]);
+  assert.throws(
+    () => assertManifestSupports(manifest, { server: ["ui:slot"] }),
+    /server: manifest is missing required ui:slot/,
+  );
+});
+
+test("getManifestCapabilities resolves client from client.capabilities with top-level fallback", () => {
+  const scoped = {
+    id: "scoped-client",
+    capabilities: ["routes"] as const,
+    client: { entry: "c.js", capabilities: ["ui:slot"] as const },
+  };
+  assert.deepEqual(getManifestCapabilities(scoped, "client"), ["ui:slot"]);
+
+  const topLevelOnly = {
+    id: "legacy-client",
+    capabilities: ["ui:slot"] as const,
+  };
+  assert.deepEqual(getManifestCapabilities(topLevelOnly, "client"), [
+    "ui:slot",
+  ]);
+
+  const emptyScoped = {
+    id: "empty-client",
+    capabilities: ["ui:slot"] as const,
+    client: { entry: "c.js", capabilities: [] as const },
+  };
+  assert.deepEqual(getManifestCapabilities(emptyScoped, "client"), []);
 });
 
 test("compareCapabilities reports missing and extra", () => {

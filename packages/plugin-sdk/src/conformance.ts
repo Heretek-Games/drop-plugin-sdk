@@ -12,7 +12,9 @@ import type {
  * `drop-plugin.json` before registering it, so the manifest is the authoritative
  * capability source at runtime. A capability the code requires but the manifest
  * omits therefore fails closed at init. These helpers let a plugin's own test
- * suite assert that the shipped manifest actually grants what the code uses.
+ * suite assert that the shipped manifest actually grants what the code uses,
+ * resolving capabilities per target exactly as the server and desktop runtimes
+ * do (see `getManifestCapabilities`).
  */
 
 export interface CapabilityComparison {
@@ -28,20 +30,28 @@ export interface RequiredCapabilities {
 }
 
 /**
- * Capabilities a manifest declares for a target. Drop reads server capabilities
- * from the top-level `capabilities` array and client capabilities from
- * `client.capabilities`; both are accepted here so v1 and v2 manifests work.
+ * Capabilities a manifest grants for a target, mirroring Drop's runtime
+ * resolution per target:
+ *
+ * - `"server"`: the top-level `capabilities` array only. Drop's
+ *   `PluginManager` builds the plugin context from `metadata.capabilities`
+ *   (`drop/server/server/internal/plugins/manager.ts`), so a capability
+ *   declared only under `server.capabilities` fails closed at runtime.
+ * - `"client"`: `client.capabilities` when it is present as an array (even an
+ *   empty one), otherwise the top-level `capabilities` array. The desktop host
+ *   applies this fallback in `drop/desktop/main/plugins/09.client-plugins.ts`
+ *   and never unions the two lists.
  */
 export function getManifestCapabilities(
   manifest: Pick<PluginManifest, "capabilities" | "server" | "client">,
   target: "server" | "client",
 ): PluginCapability[] {
   const topLevel = manifest.capabilities ?? [];
-  const scoped =
-    target === "server"
-      ? (manifest.server?.capabilities ?? [])
-      : (manifest.client?.capabilities ?? []);
-  return Array.from(new Set<PluginCapability>([...topLevel, ...scoped]));
+  if (target === "server") {
+    return [...topLevel];
+  }
+  const scoped = manifest.client?.capabilities;
+  return Array.isArray(scoped) ? [...scoped] : [...topLevel];
 }
 
 export function compareCapabilities(
