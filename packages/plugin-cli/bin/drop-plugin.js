@@ -6,6 +6,7 @@ import {
   testPlugin,
   initPlugin,
   validateManifest,
+  verifyPlugin,
 } from "../dist/index.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -37,10 +38,28 @@ Usage:
   drop-plugin init [dir]         Initialize a new plugin from starter template
   drop-plugin build [dir]        Bundle server/client entry points with esbuild and sign
   drop-plugin sign [dir]         Calculate SHA-256 digests and sign drop-plugin.json
+  drop-plugin verify [dir]       Verify checksums and signature of a bundle
+                                 (--allow-unsigned accepts bundles without a signature)
   drop-plugin validate [dir]     Validate drop-plugin.json against official schema
   drop-plugin test [dir]         Run plugin tests with Node test runner
   drop-plugin pack [dir] [out]   Verify, sign, and package bundle into .dropplugin archive
 `);
+}
+
+async function runVerify(argv) {
+  const allowUnsigned = argv.includes("--allow-unsigned");
+  const dir = positionalArg(argv) || ".";
+  const res = await verifyPlugin(dir, undefined, { allowUnsigned });
+  if (!res.valid) {
+    console.error("Verification failed:");
+    for (const err of res.errors) {
+      console.error(`  - ${err}`);
+    }
+    process.exit(1);
+  }
+  console.log(
+    `Bundle at ${dir} is valid (signature: ${res.signed ? "verified" : "none"}).`,
+  );
 }
 
 async function main() {
@@ -85,6 +104,10 @@ async function main() {
     }
     case "validate": {
       await runValidate(args[0] || ".");
+      break;
+    }
+    case "verify": {
+      await runVerify(args);
       break;
     }
     case "help":

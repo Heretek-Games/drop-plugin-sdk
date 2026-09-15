@@ -1,6 +1,6 @@
 {
   "name": "@droposs/plugin-sdk",
-  "version": "0.5.9",
+  "version": "0.6.0",
   "description": "Drop Plugin SDK contract, types, and mock testing harness for Drop OSS",
   "type": "module",
   "main": "dist/index.js",

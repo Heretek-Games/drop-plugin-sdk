@@ -1,4 +1,4 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import {
   readdir,
   readFile,
@@ -12,6 +12,73 @@ import path from "node:path";
 import Ajv from "ajv";
 
 const MANIFEST_FILE = "drop-plugin.json";
+
+/** Deterministic JSON so signer and verifier hash identical manifest bytes. */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value) ?? "null";
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).sort((a, b) => a.localeCompare(b, "en"));
+  return `{${keys
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(",")}}`;
+}
+
+function sha256Hex(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+/** Current signature scheme; legacy bundles omit the version marker. */
+export const SIGNATURE_VERSION = 2;
+
+/**
+ * Aggregate digest over every bundle file, byte-compatible with the digest
+ * `drop` core computes when verifying legacy signatures.
+ */
+async function computeFilesAggregate(
+  bundleDir: string,
+  files: string[],
+): Promise<string> {
+  const aggregate = createHash("sha256");
+  for (const rel of files) {
+    const bytes = await readFile(path.join(bundleDir, rel));
+    aggregate.update(rel);
+    aggregate.update("\0");
+    aggregate.update(String(bytes.length));
+    aggregate.update("\0");
+    aggregate.update(bytes);
+  }
+  return aggregate.digest("hex");
+}
+
+/**
+ * Signature payload v2: the files aggregate plus the canonical manifest
+ * (excluding its `signature` field), so `id`, `version`, and `capabilities`
+ * are covered and cannot be tampered with undetected. Shared algorithm with
+ * `drop` core's verifier.
+ */
+export function signaturePayloadV2(
+  filesAggregate: string,
+  manifest: Record<string, unknown>,
+): string {
+  const { signature: _ignored, ...signable } = manifest;
+  return createHash("sha256")
+    .update(filesAggregate)
+    .update("\0")
+    .update(stableStringify(signable))
+    .digest("hex");
+}
+
+function safeEqualHex(a: string, b: string): boolean {
+  const left = Buffer.from(a, "hex");
+  const right = Buffer.from(b, "hex");
+  if (left.length !== right.length || left.length === 0) return false;
+  return timingSafeEqual(left, right);
+}
 
 export function isInside(base: string, candidate: string): boolean {
   const rel = path.relative(path.resolve(base), path.resolve(candidate));
@@ -125,35 +192,167 @@ export async function signPlugin(
   const entryExists = await stat(entryPath).catch(() => null);
   if (entryExists) {
     const entryBytes = await readFile(entryPath);
-    manifest.checksum = createHash("sha256").update(entryBytes).digest("hex");
+    manifest.checksum = sha256Hex(entryBytes);
   }
 
   const files = await listFiles(bundleDir);
   const fileChecksums: Record<string, string> = {};
-  const aggregate = createHash("sha256");
 
   for (const rel of files) {
     const bytes = await readFile(path.join(bundleDir, rel));
-    fileChecksums[rel] = createHash("sha256").update(bytes).digest("hex");
-    aggregate.update(rel);
-    aggregate.update("\0");
-    aggregate.update(String(bytes.length));
-    aggregate.update("\0");
-    aggregate.update(bytes);
+    fileChecksums[rel] = sha256Hex(bytes);
   }
   manifest.files = fileChecksums;
 
   const key = signingKey ?? process.env.DROP_PLUGIN_SIGNING_KEY;
   if (key) {
+    manifest.signatureVersion = SIGNATURE_VERSION;
+    const filesAggregate = await computeFilesAggregate(bundleDir, files);
+    const payload = signaturePayloadV2(filesAggregate, manifest);
     manifest.signature = createHmac("sha256", key)
-      .update(aggregate.digest("hex"))
+      .update(payload)
       .digest("hex");
   } else {
     delete manifest.signature;
+    delete manifest.signatureVersion;
   }
 
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   return { fileCount: files.length, signed: Boolean(key) };
+}
+
+export interface VerifyResult {
+  valid: boolean;
+  signed: boolean;
+  errors: string[];
+}
+
+/**
+ * Verify a bundle against its shipped manifest: schema validity, per-file and
+ * entry SHA-256 checksums, and (when present) the HMAC signature covering the
+ * file aggregate plus the manifest itself.
+ */
+export async function verifyPlugin(
+  targetDir: string,
+  signingKey?: string,
+  options: { allowUnsigned?: boolean } = {},
+): Promise<VerifyResult> {
+  const resolvedPath = path.resolve(process.cwd(), targetDir);
+  const bundleDir = await realpath(resolvedPath).catch(() => null);
+  if (!bundleDir) {
+    throw new Error(`Directory not found: ${targetDir}`);
+  }
+
+  const manifestPath = path.join(bundleDir, MANIFEST_FILE);
+  const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
+  const errors: string[] = [];
+
+  const validation = await validateManifest(manifest);
+  if (!validation.valid) {
+    errors.push(...validation.errors.map((error) => `schema: ${error}`));
+  }
+
+  const declared: Record<string, string> = manifest.files ?? {};
+  const files = await listFiles(bundleDir);
+  const present = new Set(files);
+  for (const rel of files) {
+    const digest = sha256Hex(await readFile(path.join(bundleDir, rel)));
+    if (declared[rel] !== digest) {
+      errors.push(`checksum mismatch: ${rel}`);
+    }
+  }
+  for (const rel of Object.keys(declared)) {
+    if (!present.has(rel)) {
+      errors.push(`declared file missing: ${rel}`);
+    }
+  }
+
+  const entry =
+    manifest.entry ?? manifest.server?.entry ?? manifest.client?.entry;
+  if (entry) {
+    const entryPath = path.resolve(bundleDir, entry);
+    if (!isInside(bundleDir, entryPath)) {
+      errors.push(`entry path outside bundle: ${entry}`);
+    } else if (!(await stat(entryPath).catch(() => null))) {
+      errors.push(`entry file missing: ${entry}`);
+    } else if (manifest.checksum) {
+      const digest = sha256Hex(await readFile(entryPath));
+      if (digest !== manifest.checksum) {
+        errors.push(`entry checksum mismatch: ${entry}`);
+      }
+    }
+  }
+
+  const key = signingKey ?? process.env.DROP_PLUGIN_SIGNING_KEY;
+  let signed = false;
+  if (manifest.signature) {
+    if (!key) {
+      errors.push("manifest is signed but no signing key is available");
+    } else {
+      const filesAggregate = await computeFilesAggregate(bundleDir, files);
+      const resolved = await resolveSignedPayload(
+        bundleDir,
+        manifest,
+        filesAggregate,
+        entry,
+      );
+      if (resolved.payload === undefined) {
+        errors.push(
+          resolved.error ?? "unable to reconstruct signature payload",
+        );
+      } else {
+        const expected = createHmac("sha256", key)
+          .update(resolved.payload)
+          .digest("hex");
+        if (safeEqualHex(expected, manifest.signature)) {
+          signed = true;
+        } else {
+          errors.push("signature verification failed");
+        }
+      }
+    }
+  } else if (!options.allowUnsigned) {
+    errors.push(
+      "bundle is unsigned (pass --allow-unsigned to accept unsigned bundles)",
+    );
+  }
+
+  return { valid: errors.length === 0, signed, errors };
+}
+
+/**
+ * Reconstruct the payload a signature covers, depending on the scheme:
+ * v2 covers the file aggregate plus the canonical manifest; legacy bundles
+ * cover the file aggregate, or the entry checksum for single-file bundles.
+ */
+async function resolveSignedPayload(
+  bundleDir: string,
+  manifest: Record<string, any>,
+  filesAggregate: string,
+  entry: string | undefined,
+): Promise<{ payload?: string; error?: string }> {
+  if (manifest.signatureVersion === SIGNATURE_VERSION) {
+    if (!manifest.files) {
+      return { error: "signatureVersion 2 requires manifest file checksums" };
+    }
+    return { payload: signaturePayloadV2(filesAggregate, manifest) };
+  }
+  if (manifest.signatureVersion !== undefined) {
+    return {
+      error: `unsupported signatureVersion: ${manifest.signatureVersion}`,
+    };
+  }
+  if (manifest.files) {
+    return { payload: filesAggregate };
+  }
+  if (manifest.checksum && entry) {
+    return {
+      payload: sha256Hex(await readFile(path.join(bundleDir, entry))),
+    };
+  }
+  return {
+    error: "legacy signature has neither file checksums nor an entry checksum",
+  };
 }
 
 export async function packPlugin(
