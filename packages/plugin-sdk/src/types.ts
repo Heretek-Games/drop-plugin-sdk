@@ -495,7 +495,7 @@ export interface MultiplayerPlugin extends ClientPlugin {
   getActiveRoom?(gameId: string): Promise<Record<string, unknown> | null>;
 }
 
-export interface GenericPlugin extends ClientPlugin {}
+export type GenericPlugin = ClientPlugin;
 
 // ==========================================
 // Metadata Provider SPI (#7, #206, #207, #477)
