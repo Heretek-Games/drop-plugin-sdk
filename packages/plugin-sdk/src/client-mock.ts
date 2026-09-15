@@ -1,3 +1,4 @@
+import { MockKeyValueStore } from "./mock-core.js";
 import { MockPluginLogger } from "./mock.js";
 import type {
   ClientCapability,
@@ -23,25 +24,9 @@ import type {
   UISlotRegistration,
 } from "./types.js";
 
-export class MockClientPluginStorage implements ClientPluginStorage {
-  private readonly store = new Map<string, any>();
-
-  async get<T>(key: string): Promise<T | null> {
-    return this.store.has(key) ? structuredClone(this.store.get(key)) : null;
-  }
-
-  async set<T>(key: string, value: T): Promise<void> {
-    this.store.set(key, structuredClone(value));
-  }
-
-  async delete(key: string): Promise<void> {
-    this.store.delete(key);
-  }
-
-  async listKeys(): Promise<string[]> {
-    return Array.from(this.store.keys());
-  }
-}
+export class MockClientPluginStorage
+  extends MockKeyValueStore
+  implements ClientPluginStorage {}
 
 export class MockScopedGameFs implements ScopedGameFs {
   public files = new Map<string, Uint8Array>();

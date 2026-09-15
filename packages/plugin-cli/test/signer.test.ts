@@ -13,30 +13,40 @@ import {
   verifyPlugin,
 } from "../dist/index.js";
 
+/** Minimal client-target manifest shared by the basic signing tests. */
+function clientManifest(id: string, name: string) {
+  return {
+    id,
+    name,
+    version: "1.0.0",
+    apiVersion: 2,
+    targets: ["client"],
+    client: {
+      entry: "index.js",
+      capabilities: ["ui:slot"],
+    },
+  };
+}
+
+/** Writes a plugin manifest and its entry file into `dir`. */
+async function writeBundle(
+  dir: string,
+  manifest: Record<string, unknown>,
+  entrySource: string,
+): Promise<void> {
+  await fs.writeFile(
+    path.join(dir, "drop-plugin.json"),
+    JSON.stringify(manifest),
+    "utf-8",
+  );
+  await fs.writeFile(path.join(dir, "index.js"), entrySource, "utf-8");
+}
+
 test("signPlugin computes digests and packPlugin creates .dropplugin", async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "plugin-test-"));
   try {
-    const manifest = {
-      id: "cli-test-plugin",
-      name: "CLI Test Plugin",
-      version: "1.0.0",
-      apiVersion: 2,
-      targets: ["client"],
-      client: {
-        entry: "index.js",
-        capabilities: ["ui:slot"],
-      },
-    };
-    await fs.writeFile(
-      path.join(tmpDir, "drop-plugin.json"),
-      JSON.stringify(manifest),
-      "utf-8",
-    );
-    await fs.writeFile(
-      path.join(tmpDir, "index.js"),
-      "console.log('client entry');",
-      "utf-8",
-    );
+    const manifest = clientManifest("cli-test-plugin", "CLI Test Plugin");
+    await writeBundle(tmpDir, manifest, "console.log('client entry');");
 
     // Test sign
     const signRes = await signPlugin(tmpDir);
@@ -73,27 +83,8 @@ test("signPlugin rejects symlink escape outside bundle directory", async () => {
     const secretFile = path.join(outsideDir, "secret.txt");
     await fs.writeFile(secretFile, "top-secret", "utf-8");
 
-    const manifest = {
-      id: "traversal-test",
-      name: "Traversal Test",
-      version: "1.0.0",
-      apiVersion: 2,
-      targets: ["client"],
-      client: {
-        entry: "index.js",
-        capabilities: ["ui:slot"],
-      },
-    };
-    await fs.writeFile(
-      path.join(tmpDir, "drop-plugin.json"),
-      JSON.stringify(manifest),
-      "utf-8",
-    );
-    await fs.writeFile(
-      path.join(tmpDir, "index.js"),
-      "console.log('safe');",
-      "utf-8",
-    );
+    const manifest = clientManifest("traversal-test", "Traversal Test");
+    await writeBundle(tmpDir, manifest, "console.log('safe');");
 
     // Create an escaping symlink
     await fs.symlink(secretFile, path.join(tmpDir, "escaped.txt"));

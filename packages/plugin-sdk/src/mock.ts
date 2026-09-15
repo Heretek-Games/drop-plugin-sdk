@@ -1,3 +1,4 @@
+import { MockKeyValueStore } from "./mock-core.js";
 import type {
   CloudSavePathResolver,
   HttpMethod,
@@ -12,25 +13,11 @@ import type {
   WebSocketHandler,
 } from "./types.js";
 
-export class MockPluginStorage implements PluginStorage {
-  private readonly store = new Map<string, any>();
+export class MockPluginStorage
+  extends MockKeyValueStore
+  implements PluginStorage
+{
   private schemaVersion = 0;
-
-  async get<T>(key: string): Promise<T | null> {
-    return this.store.has(key) ? structuredClone(this.store.get(key)) : null;
-  }
-
-  async set<T>(key: string, value: T): Promise<void> {
-    this.store.set(key, structuredClone(value));
-  }
-
-  async delete(key: string): Promise<void> {
-    this.store.delete(key);
-  }
-
-  async listKeys(): Promise<string[]> {
-    return Array.from(this.store.keys());
-  }
 
   async getSchemaVersion(): Promise<number> {
     return this.schemaVersion;
