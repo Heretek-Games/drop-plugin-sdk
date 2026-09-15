@@ -10,8 +10,12 @@ import {
 import { createRequire } from "node:module";
 import path from "node:path";
 import Ajv from "ajv";
+import { SIGNATURE_VERSION } from "@drop-oss/plugin-sdk";
 
 const MANIFEST_FILE = "drop-plugin.json";
+
+/** Current signature scheme; re-exported for backwards compatibility. */
+export { SIGNATURE_VERSION };
 
 /** Deterministic JSON so signer and verifier hash identical manifest bytes. */
 function stableStringify(value: unknown): string {
@@ -32,8 +36,11 @@ function sha256Hex(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-/** Current signature scheme; legacy bundles omit the version marker. */
-export const SIGNATURE_VERSION = 2;
+/** Whether a bundle-relative path is executable plugin code. */
+function isBundleCodeFile(rel: string): boolean {
+  const ext = path.extname(rel).toLowerCase();
+  return ext === ".js" || ext === ".mjs" || ext === ".cjs";
+}
 
 /**
  * Aggregate digest over every bundle file, byte-compatible with the digest
@@ -86,17 +93,22 @@ export function isInside(base: string, candidate: string): boolean {
 }
 
 async function loadSchema(): Promise<object> {
-  try {
-    const require = createRequire(import.meta.url);
-    const schemaPath = require.resolve("@droposs/plugin-sdk/schema.json");
-    return JSON.parse(await readFile(schemaPath, "utf-8"));
-  } catch {
-    const fallback = path.resolve(
-      path.dirname(new URL(import.meta.url).pathname),
-      "../../plugin-sdk/schema/drop-plugin.schema.json",
-    );
-    return JSON.parse(await readFile(fallback, "utf-8"));
+  const require = createRequire(import.meta.url);
+  for (const specifier of [
+    "@drop-oss/plugin-sdk/schema.json",
+    "@droposs/plugin-sdk/schema.json",
+  ]) {
+    try {
+      return JSON.parse(await readFile(require.resolve(specifier), "utf-8"));
+    } catch {
+      // Try the next package scope before falling back to the monorepo path.
+    }
   }
+  const fallback = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    "../../plugin-sdk/schema/drop-plugin.schema.json",
+  );
+  return JSON.parse(await readFile(fallback, "utf-8"));
 }
 
 let cachedValidator: ((data: unknown) => boolean) | null = null;
@@ -155,29 +167,28 @@ export async function listFiles(root: string, prefix = ""): Promise<string[]> {
   return results.sort((a, b) => a.localeCompare(b));
 }
 
-export async function signPlugin(
-  targetDir: string,
+export interface SignPluginOptions {
+  /**
+   * Write the derived manifest here instead of `<bundle>/drop-plugin.json`.
+   * The source manifest is left untouched, so derived fields (checksum, files,
+   * signature) can live only in a packaged artifact.
+   */
+  outManifest?: string;
+}
+
+/**
+ * Compute the derived manifest (entry checksum, file checksums, signature)
+ * without writing anything to disk.
+ */
+async function deriveManifest(
+  bundleDir: string,
+  manifest: Record<string, any>,
   signingKey?: string,
-  validate = true,
-): Promise<{ fileCount: number; signed: boolean }> {
-  const resolvedPath = path.resolve(process.cwd(), targetDir);
-  const bundleDir = await realpath(resolvedPath).catch(() => null);
-  if (!bundleDir) {
-    throw new Error(`Directory not found: ${targetDir}`);
-  }
-
-  const manifestPath = path.join(bundleDir, MANIFEST_FILE);
-  const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
-
-  if (validate) {
-    const validation = await validateManifest(manifest);
-    if (!validation.valid) {
-      throw new Error(
-        `Manifest validation failed against schema:\n  ${validation.errors.join("\n  ")}`,
-      );
-    }
-  }
-
+): Promise<{
+  manifest: Record<string, any>;
+  fileCount: number;
+  signed: boolean;
+}> {
   // Identify primary entry (v1 or v2 server/client entry)
   const entry =
     manifest.entry ??
@@ -217,8 +228,39 @@ export async function signPlugin(
     delete manifest.signatureVersion;
   }
 
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  return { fileCount: files.length, signed: Boolean(key) };
+  return { manifest, fileCount: files.length, signed: Boolean(key) };
+}
+
+export async function signPlugin(
+  targetDir: string,
+  signingKey?: string,
+  validate = true,
+  options: SignPluginOptions = {},
+): Promise<{ fileCount: number; signed: boolean }> {
+  const resolvedPath = path.resolve(process.cwd(), targetDir);
+  const bundleDir = await realpath(resolvedPath).catch(() => null);
+  if (!bundleDir) {
+    throw new Error(`Directory not found: ${targetDir}`);
+  }
+
+  const manifestPath = path.join(bundleDir, MANIFEST_FILE);
+  const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
+
+  if (validate) {
+    const validation = await validateManifest(manifest);
+    if (!validation.valid) {
+      throw new Error(
+        `Manifest validation failed against schema:\n  ${validation.errors.join("\n  ")}`,
+      );
+    }
+  }
+
+  const derived = await deriveManifest(bundleDir, manifest, signingKey);
+  const outPath = options.outManifest
+    ? path.resolve(process.cwd(), options.outManifest)
+    : manifestPath;
+  await writeFile(outPath, `${JSON.stringify(derived.manifest, null, 2)}\n`);
+  return { fileCount: derived.fileCount, signed: derived.signed };
 }
 
 export interface VerifyResult {
@@ -252,19 +294,38 @@ export async function verifyPlugin(
     errors.push(...validation.errors.map((error) => `schema: ${error}`));
   }
 
-  const declared: Record<string, string> = manifest.files ?? {};
+  const declared: Record<string, string> | undefined = manifest.files;
   const files = await listFiles(bundleDir);
   const present = new Set(files);
-  for (const rel of files) {
-    const digest = sha256Hex(await readFile(path.join(bundleDir, rel)));
-    if (declared[rel] !== digest) {
-      errors.push(`checksum mismatch: ${rel}`);
+  const codeFiles = files.filter(isBundleCodeFile);
+  if (declared) {
+    for (const rel of files) {
+      const digest = sha256Hex(await readFile(path.join(bundleDir, rel)));
+      if (declared[rel] !== digest) {
+        errors.push(`checksum mismatch: ${rel}`);
+      }
     }
-  }
-  for (const rel of Object.keys(declared)) {
-    if (!present.has(rel)) {
-      errors.push(`declared file missing: ${rel}`);
+    for (const rel of Object.keys(declared)) {
+      const resolved = path.resolve(bundleDir, rel);
+      if (path.isAbsolute(rel) || !isInside(bundleDir, resolved)) {
+        errors.push(`invalid bundle file path: ${rel}`);
+        continue;
+      }
+      if (!present.has(rel)) {
+        errors.push(`declared file missing: ${rel}`);
+      }
     }
+    for (const rel of codeFiles) {
+      if (!(rel in declared)) {
+        errors.push(
+          `bundle file '${rel}' is not covered by the manifest 'files' checksums`,
+        );
+      }
+    }
+  } else if (codeFiles.length > 1) {
+    errors.push(
+      "bundle contains multiple code files but no 'files' checksums; refusing unverified imports",
+    );
   }
 
   const entry =
@@ -365,11 +426,19 @@ export async function packPlugin(
     throw new Error(`Directory not found: ${targetDir}`);
   }
 
-  // Ensure bundle is signed and validated
-  await signPlugin(bundleDir);
-
   const manifestPath = path.join(bundleDir, MANIFEST_FILE);
-  const manifest = JSON.parse(await readFile(manifestPath, "utf-8"));
+  const rawManifest = JSON.parse(await readFile(manifestPath, "utf-8"));
+
+  const validation = await validateManifest(rawManifest);
+  if (!validation.valid) {
+    throw new Error(
+      `Manifest validation failed against schema:\n  ${validation.errors.join("\n  ")}`,
+    );
+  }
+
+  // Derive the signed manifest in memory: packing must not dirty the source
+  // tree, the derived fields live in the archive only.
+  const { manifest } = await deriveManifest(bundleDir, rawManifest);
   const id = manifest.id;
   const version = manifest.version;
 

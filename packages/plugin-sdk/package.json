@@ -1,5 +1,5 @@
 {
-  "name": "@droposs/plugin-sdk",
+  "name": "@drop-oss/plugin-sdk",
   "version": "0.6.0",
   "description": "Drop Plugin SDK contract, types, and mock testing harness for Drop OSS",
   "type": "module",
@@ -40,7 +40,11 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "node --test"
+    "test": "node --test",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

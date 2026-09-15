@@ -1,3 +1,4 @@
+import { MockKeyValueStore } from "./mock-core.js";
 import type {
   CloudSavePathResolver,
   HttpMethod,
@@ -12,25 +13,11 @@ import type {
   WebSocketHandler,
 } from "./types.js";
 
-export class MockPluginStorage implements PluginStorage {
-  private readonly store = new Map<string, any>();
+export class MockPluginStorage
+  extends MockKeyValueStore
+  implements PluginStorage
+{
   private schemaVersion = 0;
-
-  async get<T>(key: string): Promise<T | null> {
-    return this.store.has(key) ? structuredClone(this.store.get(key)) : null;
-  }
-
-  async set<T>(key: string, value: T): Promise<void> {
-    this.store.set(key, structuredClone(value));
-  }
-
-  async delete(key: string): Promise<void> {
-    this.store.delete(key);
-  }
-
-  async listKeys(): Promise<string[]> {
-    return Array.from(this.store.keys());
-  }
 
   async getSchemaVersion(): Promise<number> {
     return this.schemaVersion;
@@ -54,6 +41,27 @@ export class MockPluginLogger implements PluginLogger {
   debug(msg: string, ...args: any[]): void {
     console.debug(`[DEBUG] ${msg}`, ...args);
   }
+}
+
+/**
+ * Storage stand-in for contexts that did not declare the `storage`
+ * capability. Mirrors Drop core's `guardStorage`: every method fails closed
+ * with a capability error instead of silently reading or writing.
+ */
+function guardStorage(pluginId: string): PluginStorage {
+  const deny = (operation: string): never => {
+    throw new Error(
+      `Plugin '${pluginId}' missing required capability 'storage' (${operation})`,
+    );
+  };
+  return {
+    get: async () => deny("storage.get"),
+    set: async () => deny("storage.set"),
+    delete: async () => deny("storage.delete"),
+    listKeys: async () => deny("storage.listKeys"),
+    getSchemaVersion: async () => deny("storage.getSchemaVersion"),
+    setSchemaVersion: async () => deny("storage.setSchemaVersion"),
+  };
 }
 
 export class MockPluginContext implements PluginContext {
@@ -85,8 +93,10 @@ export class MockPluginContext implements PluginContext {
   ) {
     this.id = id;
     this.logger = new MockPluginLogger();
-    this.storage = new MockPluginStorage();
     this.capabilities = new Set(capabilities);
+    this.storage = this.capabilities.has("storage")
+      ? new MockPluginStorage()
+      : guardStorage(id);
   }
 
   registerRoute(

@@ -80,13 +80,13 @@ jobs:
         run: pnpm install
 
       - name: Run test suite
-        run: npx @droposs/plugin-cli test .
+        run: npx @drop-oss/plugin-cli test .
 
       - name: Build bundles
-        run: npx @droposs/plugin-cli build .
+        run: npx @drop-oss/plugin-cli build .
 
       - name: Package plugin archive
-        run: npx @droposs/plugin-cli pack . ./dist-package
+        run: npx @drop-oss/plugin-cli pack . ./dist-package
 
       - name: Compute SHA-256 Checksum
         id: checksum

@@ -1,3 +1,4 @@
+import { MockKeyValueStore } from "./mock-core.js";
 import { MockPluginLogger } from "./mock.js";
 import type {
   ClientCapability,
@@ -23,29 +24,12 @@ import type {
   UISlotRegistration,
 } from "./types.js";
 
-export class MockClientPluginStorage implements ClientPluginStorage {
-  private readonly store = new Map<string, any>();
-
-  async get<T>(key: string): Promise<T | null> {
-    return this.store.has(key) ? structuredClone(this.store.get(key)) : null;
-  }
-
-  async set<T>(key: string, value: T): Promise<void> {
-    this.store.set(key, structuredClone(value));
-  }
-
-  async delete(key: string): Promise<void> {
-    this.store.delete(key);
-  }
-
-  async listKeys(): Promise<string[]> {
-    return Array.from(this.store.keys());
-  }
-}
+export class MockClientPluginStorage
+  extends MockKeyValueStore
+  implements ClientPluginStorage {}
 
 export class MockScopedGameFs implements ScopedGameFs {
   public files = new Map<string, Uint8Array>();
-  public backups = new Map<string, { sha256: string; content: Uint8Array }>();
 
   private makeKey(gameId: string, path: string): string {
     return `${gameId}:${path.replaceAll("\\", "/")}`;
@@ -71,27 +55,37 @@ export class MockScopedGameFs implements ScopedGameFs {
     this.files.set(key, bytes);
   }
 
+  /**
+   * Copy `relativePath` to `<relativePath>.drop-backup` and return the backup
+   * path, mirroring the desktop host's `plugin_game_fs_backup` command.
+   */
   async backupFile(gameId: string, relativePath: string): Promise<string> {
     const key = this.makeKey(gameId, relativePath);
     const content = this.files.get(key);
     if (!content) {
       throw new Error(`Cannot backup non-existent file: ${relativePath}`);
     }
-    const mockHash = "mock-sha256-" + content.length;
-    this.backups.set(key, {
-      sha256: mockHash,
-      content: new Uint8Array(content),
-    });
-    return mockHash;
+    const backupRelative = `${relativePath}.drop-backup`;
+    this.files.set(
+      this.makeKey(gameId, backupRelative),
+      new Uint8Array(content),
+    );
+    return backupRelative;
   }
 
+  /**
+   * Restore `relativePath` from its `.drop-backup` copy and delete the backup,
+   * mirroring the desktop host's `plugin_game_fs_restore` command.
+   */
   async restoreFile(gameId: string, relativePath: string): Promise<void> {
     const key = this.makeKey(gameId, relativePath);
-    const backup = this.backups.get(key);
+    const backupKey = this.makeKey(gameId, `${relativePath}.drop-backup`);
+    const backup = this.files.get(backupKey);
     if (!backup) {
       throw new Error(`No backup found for: ${relativePath}`);
     }
-    this.files.set(key, new Uint8Array(backup.content));
+    this.files.set(key, new Uint8Array(backup));
+    this.files.delete(backupKey);
   }
 
   async fileExists(gameId: string, relativePath: string): Promise<boolean> {

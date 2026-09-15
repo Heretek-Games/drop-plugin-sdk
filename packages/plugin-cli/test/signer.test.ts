@@ -13,30 +13,66 @@ import {
   verifyPlugin,
 } from "../dist/index.js";
 
+/** Minimal client-target manifest shared by the basic signing tests. */
+function clientManifest(id: string, name: string) {
+  return {
+    id,
+    name,
+    version: "1.0.0",
+    apiVersion: 2,
+    targets: ["client"],
+    client: {
+      entry: "index.js",
+      capabilities: ["ui:slot"],
+    },
+  };
+}
+
+/** Writes a plugin manifest and its entry file into `dir`. */
+async function writeBundle(
+  dir: string,
+  manifest: Record<string, unknown>,
+  entrySource: string,
+): Promise<void> {
+  await writeManifest(dir, manifest);
+  await fs.writeFile(path.join(dir, "index.js"), entrySource, "utf-8");
+}
+
+/** Writes `drop-plugin.json` for a bundle directory. */
+async function writeManifest(
+  dir: string,
+  manifest: Record<string, unknown>,
+): Promise<void> {
+  await fs.writeFile(
+    path.join(dir, "drop-plugin.json"),
+    JSON.stringify(manifest),
+    "utf-8",
+  );
+}
+
+/** Minimal server-target manifest shared by the verification tests. */
+function serverManifest(
+  id: string,
+  name: string,
+  extra: Record<string, unknown> = {},
+) {
+  return {
+    id,
+    name,
+    version: "1.0.0",
+    apiVersion: 2,
+    targets: ["server"],
+    capabilities: ["routes"],
+    server: { entry: "index.js", capabilities: ["routes"] },
+    ...extra,
+  };
+}
+
 test("signPlugin computes digests and packPlugin creates .dropplugin", async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "plugin-test-"));
   try {
-    const manifest = {
-      id: "cli-test-plugin",
-      name: "CLI Test Plugin",
-      version: "1.0.0",
-      apiVersion: 2,
-      targets: ["client"],
-      client: {
-        entry: "index.js",
-        capabilities: ["ui:slot"],
-      },
-    };
-    await fs.writeFile(
-      path.join(tmpDir, "drop-plugin.json"),
-      JSON.stringify(manifest),
-      "utf-8",
-    );
-    await fs.writeFile(
-      path.join(tmpDir, "index.js"),
-      "console.log('client entry');",
-      "utf-8",
-    );
+    const manifest = clientManifest("cli-test-plugin", "CLI Test Plugin");
+    await writeBundle(tmpDir, manifest, "console.log('client entry');");
 
     // Test sign
     const signRes = await signPlugin(tmpDir);
@@ -73,27 +109,8 @@ test("signPlugin rejects symlink escape outside bundle directory", async () => {
     const secretFile = path.join(outsideDir, "secret.txt");
     await fs.writeFile(secretFile, "top-secret", "utf-8");
 
-    const manifest = {
-      id: "traversal-test",
-      name: "Traversal Test",
-      version: "1.0.0",
-      apiVersion: 2,
-      targets: ["client"],
-      client: {
-        entry: "index.js",
-        capabilities: ["ui:slot"],
-      },
-    };
-    await fs.writeFile(
-      path.join(tmpDir, "drop-plugin.json"),
-      JSON.stringify(manifest),
-      "utf-8",
-    );
-    await fs.writeFile(
-      path.join(tmpDir, "index.js"),
-      "console.log('safe');",
-      "utf-8",
-    );
+    const manifest = clientManifest("traversal-test", "Traversal Test");
+    await writeBundle(tmpDir, manifest, "console.log('safe');");
 
     // Create an escaping symlink
     await fs.symlink(secretFile, path.join(tmpDir, "escaped.txt"));
@@ -108,18 +125,9 @@ test("signPlugin rejects symlink escape outside bundle directory", async () => {
 });
 
 test("validateManifest enforces required schema fields", async () => {
-  const validManifest = {
-    id: "sample-plugin",
-    name: "Sample Plugin",
+  const validManifest = serverManifest("sample-plugin", "Sample Plugin", {
     version: "1.2.3",
-    apiVersion: 2,
-    targets: ["server"],
-    capabilities: ["routes"],
-    server: {
-      entry: "index.js",
-      capabilities: ["routes"],
-    },
-  };
+  });
   const resValid = await validateManifest(validManifest);
   assert.equal(resValid.valid, true);
   assert.equal(resValid.errors.length, 0);
@@ -231,20 +239,8 @@ test("signature covers the manifest so id/version/capability tampering is detect
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-test-"));
   const key = "test-signing-key";
   try {
-    const manifest = {
-      id: "verify-test",
-      name: "Verify Test",
-      version: "1.0.0",
-      apiVersion: 2,
-      targets: ["server"],
-      capabilities: ["routes"],
-      server: { entry: "index.js", capabilities: ["routes"] },
-    };
-    await fs.writeFile(
-      path.join(tmpDir, "drop-plugin.json"),
-      JSON.stringify(manifest),
-      "utf-8",
-    );
+    const manifest = serverManifest("verify-test", "Verify Test");
+    await writeManifest(tmpDir, manifest);
     await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
 
     await signPlugin(tmpDir, key);
@@ -294,19 +290,7 @@ test("signature covers the manifest so id/version/capability tampering is detect
 test("verifyPlugin rejects unsigned bundles unless --allow-unsigned is requested", async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-unsigned-"));
   try {
-    await fs.writeFile(
-      path.join(tmpDir, "drop-plugin.json"),
-      JSON.stringify({
-        id: "unsigned",
-        name: "Unsigned",
-        version: "1.0.0",
-        apiVersion: 2,
-        targets: ["server"],
-        capabilities: ["routes"],
-        server: { entry: "index.js", capabilities: ["routes"] },
-      }),
-      "utf-8",
-    );
+    await writeManifest(tmpDir, serverManifest("unsigned", "Unsigned"));
     await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
     await signPlugin(tmpDir);
 
@@ -344,26 +328,140 @@ test("verifyPlugin still accepts legacy files-only signatures", async () => {
       .update(aggregate.digest("hex"))
       .digest("hex");
 
-    await fs.writeFile(
-      path.join(tmpDir, "drop-plugin.json"),
-      JSON.stringify({
-        id: "legacy",
-        name: "Legacy",
-        version: "1.0.0",
-        apiVersion: 2,
-        targets: ["server"],
-        capabilities: ["routes"],
-        server: { entry: "index.js", capabilities: ["routes"] },
+    await writeManifest(
+      tmpDir,
+      serverManifest("legacy", "Legacy", {
         checksum: entryDigest,
         files: { "index.js": entryDigest },
         signature: legacySignature,
       }),
-      "utf-8",
     );
 
     const res = await verifyPlugin(tmpDir, key);
     assert.equal(res.valid, true, res.errors.join("; "));
     assert.equal(res.signed, true);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin accepts legacy single-file bundles with only an entry checksum", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-entry-"));
+  const key = "legacy-entry-key";
+  try {
+    const content = "export {};";
+    await fs.writeFile(path.join(tmpDir, "index.js"), content, "utf-8");
+    const entryDigest = createHash("sha256").update(content).digest("hex");
+    const legacySignature = createHmac("sha256", key)
+      .update(entryDigest)
+      .digest("hex");
+
+    await writeManifest(
+      tmpDir,
+      serverManifest("legacy-entry", "Legacy Entry", {
+        checksum: entryDigest,
+        signature: legacySignature,
+      }),
+    );
+
+    const res = await verifyPlugin(tmpDir, key);
+    assert.equal(res.valid, true, res.errors.join("; "));
+    assert.equal(res.signed, true);
+
+    // Without a key the legacy signature cannot be verified.
+    const noKey = await verifyPlugin(tmpDir);
+    assert.equal(noKey.valid, false);
+    assert.ok(noKey.errors.some((e) => /no signing key/.test(e)));
+
+    // Tampering with the entry invalidates both the checksum and the signature.
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export const x = 1;");
+    const tampered = await verifyPlugin(tmpDir, key);
+    assert.equal(tampered.valid, false);
+    assert.ok(
+      tampered.errors.some((e) => /entry checksum mismatch/.test(e)),
+      tampered.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin rejects multi-file legacy bundles without a files map", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-multi-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "lib"), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
+    await fs.writeFile(
+      path.join(tmpDir, "lib", "a.js"),
+      "export const a = 1;",
+      "utf-8",
+    );
+    await writeManifest(tmpDir, serverManifest("legacy-multi", "Legacy Multi"));
+
+    const res = await verifyPlugin(tmpDir, undefined, { allowUnsigned: true });
+    assert.equal(res.valid, false);
+    assert.ok(
+      res.errors.some((e) =>
+        /multiple code files but no 'files' checksums/.test(e),
+      ),
+      res.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin requires every code file to be covered by the files map", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-cover-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "lib"), { recursive: true });
+    const entry = "export {};";
+    await fs.writeFile(path.join(tmpDir, "index.js"), entry, "utf-8");
+    await fs.writeFile(
+      path.join(tmpDir, "lib", "a.js"),
+      "export const a = 1;",
+      "utf-8",
+    );
+    await writeManifest(
+      tmpDir,
+      serverManifest("uncovered", "Uncovered", {
+        checksum: createHash("sha256").update(entry).digest("hex"),
+        files: {
+          "index.js": createHash("sha256").update(entry).digest("hex"),
+        },
+      }),
+    );
+
+    const res = await verifyPlugin(tmpDir, undefined, { allowUnsigned: true });
+    assert.equal(res.valid, false);
+    assert.ok(
+      res.errors.some((e) =>
+        /'lib\/a\.js' is not covered by the manifest 'files' checksums/.test(e),
+      ),
+      res.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("signPlugin covers root state.json and schema.json but ignores drop-plugin.json", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "ignore-root-"));
+  try {
+    await writeManifest(tmpDir, serverManifest("ignore-root", "Ignore Root"));
+    await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
+    await fs.writeFile(path.join(tmpDir, "state.json"), "{}", "utf-8");
+    await fs.writeFile(path.join(tmpDir, "schema.json"), "{}", "utf-8");
+
+    await signPlugin(tmpDir);
+
+    const signed = JSON.parse(
+      await fs.readFile(path.join(tmpDir, "drop-plugin.json"), "utf-8"),
+    );
+    assert.ok(signed.files["index.js"]);
+    assert.ok(signed.files["state.json"]);
+    assert.ok(signed.files["schema.json"]);
+    assert.equal(signed.files["drop-plugin.json"], undefined);
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
@@ -433,4 +531,69 @@ test("schema accepts cloudsave:provider in server and client capabilities", asyn
   };
   const res = await validateManifest(manifest);
   assert.equal(res.valid, true, res.errors.join("; "));
+});
+
+async function writeFixtureBundle(
+  prefix: string,
+  id: string,
+  name: string,
+): Promise<{ tmpDir: string; manifestPath: string; before: string }> {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  await writeManifest(tmpDir, serverManifest(id, name));
+  await fs.writeFile(path.join(tmpDir, "index.js"), "export {};", "utf-8");
+  const manifestPath = path.join(tmpDir, "drop-plugin.json");
+  const before = await fs.readFile(manifestPath, "utf-8");
+  return { tmpDir, manifestPath, before };
+}
+
+test("signPlugin --out-manifest leaves the source manifest untouched", async () => {
+  const key = "out-manifest-key";
+  const { tmpDir, manifestPath, before } = await writeFixtureBundle(
+    "sign-out-",
+    "out-manifest",
+    "Out Manifest",
+  );
+  try {
+    const outPath = path.join(tmpDir, "derived", "drop-plugin.json");
+    await fs.mkdir(path.dirname(outPath), { recursive: true });
+    const res = await signPlugin(tmpDir, key, true, { outManifest: outPath });
+    assert.equal(res.signed, true);
+    assert.equal(await fs.readFile(manifestPath, "utf-8"), before);
+
+    const derived = JSON.parse(await fs.readFile(outPath, "utf-8"));
+    assert.equal(derived.signatureVersion, 2);
+    assert.ok(derived.signature);
+    assert.ok(derived.files["index.js"]);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("packPlugin leaves the source manifest untouched", async () => {
+  const outDir = await fs.mkdtemp(path.join(os.tmpdir(), "pack-out-"));
+  const key = "pack-clean-key";
+  const previousKey = process.env.DROP_PLUGIN_SIGNING_KEY;
+  process.env.DROP_PLUGIN_SIGNING_KEY = key;
+  const { tmpDir, manifestPath, before } = await writeFixtureBundle(
+    "pack-clean-",
+    "pack-clean",
+    "Pack Clean",
+  );
+  try {
+    const res = await packPlugin(tmpDir, outDir);
+    assert.equal(await fs.readFile(manifestPath, "utf-8"), before);
+
+    const archive = JSON.parse(await fs.readFile(res.packagePath, "utf-8"));
+    assert.equal(archive.manifest.signatureVersion, 2);
+    assert.ok(archive.manifest.signature);
+    assert.ok(archive.manifest.files["index.js"]);
+  } finally {
+    if (previousKey === undefined) {
+      delete process.env.DROP_PLUGIN_SIGNING_KEY;
+    } else {
+      process.env.DROP_PLUGIN_SIGNING_KEY = previousKey;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+    await fs.rm(outDir, { recursive: true, force: true });
+  }
 });

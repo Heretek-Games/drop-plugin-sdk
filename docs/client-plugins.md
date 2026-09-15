@@ -7,7 +7,7 @@ Client plugins in Drop run inside the desktop host (Tauri v2 + Vue 3). They allo
 ## The `ClientPlugin` Interface
 
 ```typescript
-import type { ClientPlugin, ClientPluginContext } from "@droposs/plugin-sdk";
+import type { ClientPlugin, ClientPluginContext } from "@drop-oss/plugin-sdk";
 
 export default class ExampleClientPlugin implements ClientPlugin {
   metadata = {

@@ -21,29 +21,16 @@ The `drop-plugin.json` manifest declares plugin metadata, execution targets, req
   "trust": "trusted",
   "storageVersion": 1,
   "targets": ["server", "client"],
-  "capabilities": [
-    "routes",
-    "storage",
-    "websocket",
-    "events",
-    "network",
-    "ui:slot",
-    "ui:play-action",
-    "ui:context-menu",
-    "game:launch-hook",
-    "game:fs",
-    "game:scan",
-    "client:storage",
-    "client:ws",
-    "system:command"
-  ],
+  "capabilities": ["routes", "storage", "websocket", "events", "network"],
   "server": {
     "entry": "dist/server.js",
+    "source": "src/server.ts",
     "storageVersion": 1,
     "capabilities": ["routes", "storage", "websocket", "events", "network"]
   },
   "client": {
     "entry": "dist/client.js",
+    "source": "src/client.ts",
     "css": "dist/client.css",
     "capabilities": [
       "ui:slot",
@@ -90,16 +77,54 @@ The `drop-plugin.json` manifest declares plugin metadata, execution targets, req
 
 ### Architecture & Security
 
-- **`apiVersion`** (`integer`, default `2`): Target Drop Plugin API version. Drop core supports versions `[1, 2]`.
+- **`apiVersion`** (`integer`, required): Target Drop Plugin API version. Drop core accepts `SUPPORTED_API_VERSIONS` (`[1, 2]`); a manifest that omits it is rejected.
 - **`trust`** (`"trusted" | "sandboxed"`, default `"trusted"`): Trust tier. Currently, plugins run in-process as `"trusted"`.
 - **`storageVersion`** (`integer`, optional): Integer schema version for persistent storage migrations.
-- **`targets`** (`Array<"server" | "client">`, required): Platforms the plugin provides code for.
+- **`targets`** (`Array<"server" | "client">`, optional): Platforms the plugin provides code for.
+
+---
+
+## Capability Scoping
+
+Capabilities are resolved **per target**, and the two targets do not read the same
+place:
+
+- **Server plugins** are granted only the **top-level `capabilities` array**.
+  Drop's `PluginManager` builds the server context from `metadata.capabilities`
+  and ignores `server.capabilities` entirely, so declaring a server capability
+  inside the `server` block grants nothing and fails closed at init.
+- **Client plugins** are granted `client.capabilities` when that array is
+  present — even an empty one — otherwise they fall back to the top-level
+  `capabilities` array. `client.capabilities` and the top-level list are never
+  unioned.
+
+For a full-stack plugin, list server capabilities at the top level (and
+optionally repeat them under `server.capabilities` for documentation) and list
+the client set under `client.capabilities`:
+
+```json
+{
+  "capabilities": ["routes", "storage", "events"],
+  "server": {
+    "entry": "dist/server.js",
+    "capabilities": ["routes", "storage", "events"]
+  },
+  "client": {
+    "entry": "dist/client.js",
+    "capabilities": ["ui:slot", "ui:play-action", "client:storage"]
+  }
+}
+```
+
+The SDK's `getManifestCapabilities`, `compareCapabilities`, and
+`assertManifestSupports` helpers mirror this resolution so plugin test suites can
+assert that the shipped manifest grants exactly what the code requires.
 
 ---
 
 ## Capabilities Reference
 
-Capabilities are **strictly fail-closed**. If an API is called without the corresponding capability declared in `capabilities`, Drop rejects the operation immediately.
+Capabilities are **strictly fail-closed**. If an API is called without the corresponding capability declared in the target's capability list (see [Capability Scoping](#capability-scoping)), Drop rejects the operation immediately.
 
 ### Server Capabilities
 

@@ -1,5 +1,5 @@
 {
-  "name": "@droposs/plugin-cli",
+  "name": "@drop-oss/plugin-cli",
   "version": "0.6.0",
   "description": "Drop Plugin build, test, signing, and packaging CLI for Drop OSS",
   "type": "module",
@@ -36,7 +36,11 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "node --test"
+    "test": "node --test",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -44,7 +48,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@droposs/plugin-sdk": "workspace:*",
+    "@drop-oss/plugin-sdk": "workspace:*",
     "ajv": "^8.20.0",
     "esbuild": "^0.28.2"
   }

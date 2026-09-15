@@ -26,7 +26,7 @@ importers:
 
   packages/plugin-cli:
     dependencies:
-      '@droposs/plugin-sdk':
+      '@drop-oss/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
       ajv:
@@ -54,11 +54,11 @@ importers:
 
   templates/starter-plugin:
     dependencies:
-      '@droposs/plugin-sdk':
+      '@drop-oss/plugin-sdk':
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
     devDependencies:
-      '@droposs/plugin-cli':
+      '@drop-oss/plugin-cli':
         specifier: workspace:*
         version: link:../../packages/plugin-cli
       '@types/node':

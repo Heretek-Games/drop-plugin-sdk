@@ -1,7 +1,6 @@
 import type {
   ClientCapability,
   PluginCapability,
-  PluginManifest,
   ServerCapability,
 } from "./types.js";
 
@@ -30,6 +29,17 @@ export interface RequiredCapabilities {
 }
 
 /**
+ * Structural view of the manifest fields the conformance helpers read.
+ * Declared with readonly arrays so tests can pass literal (`as const`)
+ * manifests without widening or copying.
+ */
+export interface ManifestCapabilityScope {
+  capabilities?: readonly PluginCapability[];
+  server?: { capabilities?: readonly ServerCapability[] };
+  client?: { capabilities?: readonly ClientCapability[] };
+}
+
+/**
  * Capabilities a manifest grants for a target, mirroring Drop's runtime
  * resolution per target:
  *
@@ -43,7 +53,7 @@ export interface RequiredCapabilities {
  *   and never unions the two lists.
  */
 export function getManifestCapabilities(
-  manifest: Pick<PluginManifest, "capabilities" | "server" | "client">,
+  manifest: ManifestCapabilityScope,
   target: "server" | "client",
 ): PluginCapability[] {
   const topLevel = manifest.capabilities ?? [];
@@ -72,7 +82,7 @@ export function compareCapabilities(
  * `allowExtra` is set, the unused) capabilities.
  */
 export function assertManifestSupports(
-  manifest: Pick<PluginManifest, "id" | "capabilities" | "server" | "client">,
+  manifest: ManifestCapabilityScope & { id?: string },
   required: RequiredCapabilities,
   options: { allowExtra?: boolean } = {},
 ): void {
@@ -89,9 +99,7 @@ export function assertManifestSupports(
       );
     }
     if (!options.allowExtra && extra.length > 0) {
-      problems.push(
-        `${target}: manifest declares unused ${extra.join(", ")}`,
-      );
+      problems.push(`${target}: manifest declares unused ${extra.join(", ")}`);
     }
   }
 

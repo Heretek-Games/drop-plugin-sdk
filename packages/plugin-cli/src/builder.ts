@@ -8,6 +8,8 @@ export interface BuildOptions {
   sourcemap?: boolean;
   sign?: boolean;
   signingKey?: string;
+  /** Write derived manifest fields here instead of the source manifest. */
+  outManifest?: string;
 }
 
 export async function buildPlugin(
@@ -53,7 +55,13 @@ export async function buildPlugin(
       format: "esm",
       sourcemap: options.sourcemap ?? true,
       minify: options.minify ?? false,
-      external: ["@droposs/plugin-sdk", "@drop/plugin-sdk", "h3", "pino"],
+      external: [
+        "@drop-oss/plugin-sdk",
+        "@droposs/plugin-sdk",
+        "@drop/plugin-sdk",
+        "h3",
+        "pino",
+      ],
     });
     serverBuilt = true;
   }
@@ -89,14 +97,21 @@ export async function buildPlugin(
       format: "esm",
       sourcemap: options.sourcemap ?? true,
       minify: options.minify ?? false,
-      external: ["vue", "@droposs/plugin-sdk", "@drop/plugin-sdk"],
+      external: [
+        "vue",
+        "@drop-oss/plugin-sdk",
+        "@droposs/plugin-sdk",
+        "@drop/plugin-sdk",
+      ],
     });
     clientBuilt = true;
   }
 
   // 3. Automatically re-sign the plugin bundle after building
   if (options.sign !== false) {
-    await signPlugin(dir, options.signingKey);
+    await signPlugin(dir, options.signingKey, true, {
+      outManifest: options.outManifest,
+    });
   }
 
   return { serverBuilt, clientBuilt };

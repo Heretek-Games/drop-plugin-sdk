@@ -28,16 +28,16 @@ jobs:
         run: pnpm install
 
       - name: Run Unit Tests
-        run: npx @droposs/plugin-cli test .
+        run: npx @drop-oss/plugin-cli test .
 
       - name: Build Bundles
-        run: npx @droposs/plugin-cli build .
+        run: npx @drop-oss/plugin-cli build .
 
       - name: Validate Manifest
-        run: npx @droposs/plugin-cli validate .
+        run: npx @drop-oss/plugin-cli validate .
 
       - name: Package Plugin Archive
-        run: npx @droposs/plugin-cli pack . ./dist-package
+        run: npx @drop-oss/plugin-cli pack . ./dist-package
 
       - name: Generate Checksums
         id: pkg

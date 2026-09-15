@@ -1,42 +1,29 @@
 {
+  "$schema": "https://droposs.org/schemas/drop-plugin.schema.json",
   "id": "starter-plugin",
   "name": "Starter Plugin",
   "version": "1.0.0",
   "description": "Scaffolded Drop plugin template",
   "author": "Heretek Games",
+  "license": "MIT",
   "apiVersion": 2,
   "targets": ["server", "client"],
   "trust": "trusted",
   "storageVersion": 1,
-  "capabilities": [
-    "routes",
-    "storage",
-    "events",
-    "ui:play-action",
-    "game:launch-hook",
-    "client:storage"
-  ],
-  "entry": "dist/src/index.js",
-  "clientEntry": "dist/src/client.js",
-  "checksum": "3adbe175e2b56fd0a061106fa54a84ca8340b4389e2ee3eebb1fb86cb73b0839",
-  "files": {
-    "dist/index.d.ts": "fd17f44bac27882bf1646ba690104fdf606bb035c0d406a377cfc7ca74080149",
-    "dist/index.js": "5f2ace3415445b9fcf6ad61169830708a288ce277741bd9a48b555aa329c4fb0",
-    "dist/src/client.d.ts": "5e90d95623516f029f808d6a731f110a9d6eed7e2e1ff8db4157e55e13f30b3f",
-    "dist/src/client.js": "72d45f5d14be672a98f9d4632b628e72b8fdc8306adf4d81e2797e8a6ba1e504",
-    "dist/src/index.d.ts": "167e3f46bfe7585ada9be15cbd6e8564aa1b060777a2c14f7abbe32f042d98a3",
-    "dist/src/index.js": "3adbe175e2b56fd0a061106fa54a84ca8340b4389e2ee3eebb1fb86cb73b0839",
-    "dist/test/client.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
-    "dist/test/client.test.js": "3e45c116e0843be07e8b44641bc0fc3391dbf93c684af8b86fffd6b3fad4eb29",
-    "dist/test/index.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
-    "dist/test/index.test.js": "81cde18dd473f02ac8e389b1b79fbd46c9644241f8aaf1a276a49f3c71847135",
-    "package.json": "d033943de917bf9c6d57de04dfa56fcea9a9c71686961e1ea65225d279273772",
-    "src/client.ts": "be99c7c75204f738c59aa520f061c237fdaafee2a4c7d9c2174e7d30b28befa7",
-    "src/index.ts": "4e5e6e3b6e7fd802716d6908b512e0b6a151d1cb9f0a8773a38d2fb20437533e",
-    "test/client.test.ts": "f716deaeabb3adb0f8be228489e2e4e08124c583f880d94cea72dc19c3ce5a05",
-    "test/index.test.d.ts": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
-    "test/index.test.js": "62525abda21d1b22c1dc088888faf98474519f56db387f73f80b44a4146f4cc5",
-    "test/index.test.ts": "037a4746694c64f40947d691d6b52380662eeaf6e0bcbda6bb04d2cdc94c5f78",
-    "tsconfig.json": "71d211ab33317fcc799e5498a660f5e1793cb7db08473d4923a320a5a3d6d043"
+  "capabilities": ["routes", "storage", "events"],
+  "server": {
+    "entry": "dist/src/index.js",
+    "source": "src/index.ts",
+    "capabilities": ["routes", "storage", "events"]
+  },
+  "client": {
+    "entry": "dist/src/client.js",
+    "source": "src/client.ts",
+    "capabilities": [
+      "ui:slot",
+      "ui:play-action",
+      "game:launch-hook",
+      "client:storage"
+    ]
   }
 }

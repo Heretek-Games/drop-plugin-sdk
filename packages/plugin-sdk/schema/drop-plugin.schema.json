@@ -4,7 +4,7 @@
   "title": "DropPluginManifest",
   "description": "Schema for drop-plugin.json plugin manifests in Drop OSS",
   "type": "object",
-  "required": ["id", "name", "version"],
+  "required": ["id", "name", "version", "apiVersion"],
   "additionalProperties": true,
   "properties": {
     "id": {
@@ -48,8 +48,7 @@
     "apiVersion": {
       "type": "integer",
       "enum": [1, 2],
-      "default": 2,
-      "description": "Target Drop Plugin API version"
+      "description": "Target Drop Plugin API version. Required; supported values are 1 and 2"
     },
     "trust": {
       "type": "string",
@@ -152,6 +151,10 @@
           "type": "string",
           "description": "Relative path to server entry point"
         },
+        "source": {
+          "type": "string",
+          "description": "Relative path to the TypeScript/JavaScript source bundled into server.entry"
+        },
         "capabilities": {
           "type": "array",
           "items": {
@@ -181,6 +184,10 @@
         "entry": {
           "type": "string",
           "description": "Relative path to client entry point"
+        },
+        "source": {
+          "type": "string",
+          "description": "Relative path to the TypeScript/JavaScript source bundled into client.entry"
         },
         "css": {
           "type": "string",

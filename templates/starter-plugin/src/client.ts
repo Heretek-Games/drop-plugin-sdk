@@ -2,7 +2,7 @@ import type {
   ClientPlugin,
   ClientPluginContext,
   LaunchContext,
-} from "@droposs/plugin-sdk";
+} from "@drop-oss/plugin-sdk";
 
 export default class StarterClientPlugin implements ClientPlugin {
   metadata = {

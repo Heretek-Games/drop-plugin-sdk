@@ -64,7 +64,7 @@ We evaluated three potential isolation runtime architectures against the Drop pl
 | **Call Latency**        | ~0.05 ms (host function call)                | ~0.15–0.30 ms (Unix domain socket/stdio)  | ~0.02 ms (in-process isolate)          |
 | **Fault Containment**   | ✅ Trap contained in WASM instance           | ✅ Process crash contained by supervisor  | ⚠️ C++ panic crashes process           |
 | **OS Sandboxing**       | Host controls host calls                     | ✅ Can apply `seccomp`, cgroups, `pledge` | Limited to V8 runtime constraints      |
-| **Build & Toolchain**   | High friction (complex toolchain)            | Native `esbuild` / `@droposs/plugin-cli`  | High (native node-gyp C++ compilation) |
+| **Build & Toolchain**   | High friction (complex toolchain)            | Native `esbuild` / `@drop-oss/plugin-cli` | High (native node-gyp C++ compilation) |
 
 ### 3.1 WASM/WASI Deep-Dive
 
@@ -79,7 +79,7 @@ Using tools like Extism or Javy to run TypeScript requires bundling an interpret
 Spawning plugins in an external worker process (`node:child_process.fork` or an isolated binary supervisor):
 
 1. **Clean Separation**: Complete protection against prototype pollution, memory leaks, and fatal process exits.
-2. **Zero Toolchain Disruption**: Plugin developers continue writing standard TypeScript with `@droposs/plugin-sdk` and bundling via `@droposs/plugin-cli`.
+2. **Zero Toolchain Disruption**: Plugin developers continue writing standard TypeScript with `@drop-oss/plugin-sdk` and bundling via `@drop-oss/plugin-cli`.
 3. **OS-Level Enforcement**: On Linux, the supervisor process can drop privileges and restrict system calls using `prctl(PR_SET_NO_NEW_PRIVS)` and `seccomp` profiles.
 
 ---
@@ -122,7 +122,7 @@ To support untrusted isolated execution (`trust: "sandboxed"`), the plugin contr
 - Storage methods (`get`, `set`, `delete`) already return `Promise<T>` in `PluginStorage`, making them 100% compatible with asynchronous IPC proxies.
 - Event broadcasting (`ctx.broadcast`, `ctx.subscribe`) and WebSocket messaging already use discrete serializable payloads.
 
-The client RPC abstraction already published in `@droposs/plugin-sdk` (`PluginRpcClient`) serves as the reference implementation for IPC envelope serialization.
+The client RPC abstraction already published in `@drop-oss/plugin-sdk` (`PluginRpcClient`) serves as the reference implementation for IPC envelope serialization.
 
 ---
 

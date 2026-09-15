@@ -2,12 +2,13 @@
   "name": "drop-plugin-sdk-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Drop Plugin SDK monorepo containing @droposs/plugin-sdk and @droposs/plugin-cli",
+  "description": "Drop Plugin SDK monorepo containing @drop-oss/plugin-sdk and @drop-oss/plugin-cli",
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
-    "publish:dry-run": "pnpm --filter @droposs/plugin-sdk --filter @droposs/plugin-cli publish --dry-run --access public --no-git-checks",
-    "publish:local": "pnpm --filter @droposs/plugin-sdk --filter @droposs/plugin-cli publish --access public --no-git-checks",
+    "typecheck": "pnpm -r run typecheck",
+    "publish:dry-run": "pnpm --filter @drop-oss/plugin-sdk --filter @drop-oss/plugin-cli publish --dry-run --access public --no-git-checks",
+    "publish:local": "pnpm --filter @drop-oss/plugin-sdk --filter @drop-oss/plugin-cli publish --access public --no-git-checks",
     "lint": "eslint ."
   },
   "devDependencies": {

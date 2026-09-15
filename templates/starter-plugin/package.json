@@ -7,13 +7,17 @@
   "scripts": {
     "build": "tsc",
     "test": "node --test dist/test/*.js",
+    "typecheck": "tsc --noEmit",
     "sign": "drop-plugin sign ."
   },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
-    "@droposs/plugin-sdk": "workspace:*"
+    "@drop-oss/plugin-sdk": "workspace:*"
   },
   "devDependencies": {
-    "@droposs/plugin-cli": "workspace:*",
+    "@drop-oss/plugin-cli": "workspace:*",
     "typescript": "^5.7.0",
     "@types/node": "^22.0.0"
   },

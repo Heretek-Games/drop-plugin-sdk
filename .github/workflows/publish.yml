@@ -45,8 +45,8 @@ jobs:
       - name: Run test suites
         run: pnpm -r run test
 
-      - name: Publish @droposs/plugin-sdk
-        run: pnpm --filter @droposs/plugin-sdk publish --access public --provenance --no-git-checks
+      - name: Publish @drop-oss/plugin-sdk
+        run: pnpm --filter @drop-oss/plugin-sdk publish --access public --provenance --no-git-checks
 
-      - name: Publish @droposs/plugin-cli
-        run: pnpm --filter @droposs/plugin-cli publish --access public --provenance --no-git-checks
+      - name: Publish @drop-oss/plugin-cli
+        run: pnpm --filter @drop-oss/plugin-cli publish --access public --provenance --no-git-checks
