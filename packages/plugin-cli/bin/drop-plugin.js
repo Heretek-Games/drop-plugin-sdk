@@ -39,6 +39,7 @@ Usage:
   drop-plugin build [dir]        Bundle server/client entry points with esbuild and sign
   drop-plugin sign [dir]         Calculate SHA-256 digests and sign drop-plugin.json
   drop-plugin verify [dir]       Verify checksums and signature of a bundle
+                                 (--allow-unsigned accepts bundles without a signature)
   drop-plugin validate [dir]     Validate drop-plugin.json against official schema
   drop-plugin test [dir]         Run plugin tests with Node test runner
   drop-plugin pack [dir] [out]   Verify, sign, and package bundle into .dropplugin archive
@@ -90,8 +91,9 @@ async function main() {
       break;
     }
     case "verify": {
-      const dir = args[0] || ".";
-      const res = await verifyPlugin(dir);
+      const allowUnsigned = args.includes("--allow-unsigned");
+      const dir = args.find((arg) => !arg.startsWith("-")) || ".";
+      const res = await verifyPlugin(dir, undefined, { allowUnsigned });
       if (!res.valid) {
         console.error("Verification failed:");
         for (const err of res.errors) {

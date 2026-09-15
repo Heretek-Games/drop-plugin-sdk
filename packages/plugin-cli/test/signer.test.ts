@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { createHash, createHmac } from "node:crypto";
 import path from "node:path";
 import os from "node:os";
 import {
@@ -265,12 +266,18 @@ test("signature covers the manifest so id/version/capability tampering is detect
     const tamperedResult = await verifyPlugin(tmpDir, key);
     assert.equal(tamperedResult.valid, false);
     assert.ok(
-      tamperedResult.errors.some((e) => /signature verification failed/.test(e)),
+      tamperedResult.errors.some((e) =>
+        /signature verification failed/.test(e),
+      ),
       tamperedResult.errors.join("; "),
     );
 
     // Tamper with a bundle file.
-    await fs.writeFile(path.join(tmpDir, "index.js"), "export const x = 1;", "utf-8");
+    await fs.writeFile(
+      path.join(tmpDir, "index.js"),
+      "export const x = 1;",
+      "utf-8",
+    );
     const fileResult = await verifyPlugin(tmpDir, key);
     assert.equal(fileResult.valid, false);
     assert.ok(fileResult.errors.some((e) => /checksum mismatch/.test(e)));
@@ -284,7 +291,7 @@ test("signature covers the manifest so id/version/capability tampering is detect
   }
 });
 
-test("verifyPlugin accepts an unsigned bundle whose checksums match", async () => {
+test("verifyPlugin rejects unsigned bundles unless --allow-unsigned is requested", async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-unsigned-"));
   try {
     await fs.writeFile(
@@ -304,8 +311,105 @@ test("verifyPlugin accepts an unsigned bundle whose checksums match", async () =
     await signPlugin(tmpDir);
 
     const res = await verifyPlugin(tmpDir);
+    assert.equal(res.valid, false);
+    assert.ok(
+      res.errors.some((e) => /unsigned/.test(e)),
+      res.errors.join("; "),
+    );
+
+    const allowed = await verifyPlugin(tmpDir, undefined, {
+      allowUnsigned: true,
+    });
+    assert.equal(allowed.valid, true, allowed.errors.join("; "));
+    assert.equal(allowed.signed, false);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin still accepts legacy files-only signatures", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-legacy-"));
+  const key = "legacy-test-key";
+  try {
+    const content = "export {};";
+    await fs.writeFile(path.join(tmpDir, "index.js"), content, "utf-8");
+    const entryDigest = createHash("sha256").update(content).digest("hex");
+    const aggregate = createHash("sha256");
+    aggregate.update("index.js");
+    aggregate.update("\0");
+    aggregate.update(String(Buffer.byteLength(content)));
+    aggregate.update("\0");
+    aggregate.update(Buffer.from(content));
+    const legacySignature = createHmac("sha256", key)
+      .update(aggregate.digest("hex"))
+      .digest("hex");
+
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify({
+        id: "legacy",
+        name: "Legacy",
+        version: "1.0.0",
+        apiVersion: 2,
+        targets: ["server"],
+        capabilities: ["routes"],
+        server: { entry: "index.js", capabilities: ["routes"] },
+        checksum: entryDigest,
+        files: { "index.js": entryDigest },
+        signature: legacySignature,
+      }),
+      "utf-8",
+    );
+
+    const res = await verifyPlugin(tmpDir, key);
     assert.equal(res.valid, true, res.errors.join("; "));
-    assert.equal(res.signed, false);
+    assert.equal(res.signed, true);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("v2 signature matches the cross-repo fixture vector", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "verify-fixture-"));
+  const key = "fixture-signing-key";
+  try {
+    await fs.mkdir(path.join(tmpDir, "lib"), { recursive: true });
+    await fs.writeFile(path.join(tmpDir, "index.js"), 'console.log("hi");\n');
+    await fs.writeFile(path.join(tmpDir, "lib/a.js"), "export const a = 1;\n");
+    await fs.writeFile(
+      path.join(tmpDir, "drop-plugin.json"),
+      JSON.stringify({
+        id: "fixture",
+        name: "Fixture",
+        version: "1.0.0",
+        apiVersion: 2,
+        entry: "index.js",
+        capabilities: ["events"],
+      }),
+      "utf-8",
+    );
+
+    await signPlugin(tmpDir, key);
+    const signed = JSON.parse(
+      await fs.readFile(path.join(tmpDir, "drop-plugin.json"), "utf-8"),
+    );
+    assert.equal(signed.signatureVersion, 2);
+    assert.equal(
+      signed.files["index.js"],
+      "2bf8b125d15a71b5fa79fe710cae0db911a71e65891e270bca1d4eb5dd785288",
+    );
+    assert.equal(
+      signed.files["lib/a.js"],
+      "037ecd1db38c230c248787e60fd7bfc0cb0101b187b59535b6e7483be762d350",
+    );
+    assert.equal(
+      signed.signature,
+      "3f21422b93a9ca2f852cf9351b628a6c80a7a505b4989dfb72ab80ed88875a96",
+    );
+
+    const res = await verifyPlugin(tmpDir, key);
+    assert.equal(res.valid, true, res.errors.join("; "));
+    assert.equal(res.signed, true);
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }

@@ -32,14 +32,15 @@ function sha256Hex(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+/** Current signature scheme; legacy bundles omit the version marker. */
+export const SIGNATURE_VERSION = 2;
+
 /**
- * Aggregate digest over every bundle file plus the manifest itself (excluding
- * its `signature` field), so the signed payload covers `id`, `version`, and
- * `capabilities` and cannot be tampered with undetected.
+ * Aggregate digest over every bundle file, byte-compatible with the digest
+ * `drop` core computes when verifying legacy signatures.
  */
-async function computeAggregateDigest(
+async function computeFilesAggregate(
   bundleDir: string,
-  manifest: Record<string, unknown>,
   files: string[],
 ): Promise<string> {
   const aggregate = createHash("sha256");
@@ -51,10 +52,25 @@ async function computeAggregateDigest(
     aggregate.update("\0");
     aggregate.update(bytes);
   }
-  const { signature: _ignored, ...signable } = manifest;
-  aggregate.update("manifest\0");
-  aggregate.update(stableStringify(signable));
   return aggregate.digest("hex");
+}
+
+/**
+ * Signature payload v2: the files aggregate plus the canonical manifest
+ * (excluding its `signature` field), so `id`, `version`, and `capabilities`
+ * are covered and cannot be tampered with undetected. Shared algorithm with
+ * `drop` core's verifier.
+ */
+export function signaturePayloadV2(
+  filesAggregate: string,
+  manifest: Record<string, unknown>,
+): string {
+  const { signature: _ignored, ...signable } = manifest;
+  return createHash("sha256")
+    .update(filesAggregate)
+    .update("\0")
+    .update(stableStringify(signable))
+    .digest("hex");
 }
 
 function safeEqualHex(a: string, b: string): boolean {
@@ -190,16 +206,15 @@ export async function signPlugin(
 
   const key = signingKey ?? process.env.DROP_PLUGIN_SIGNING_KEY;
   if (key) {
-    const aggregateDigest = await computeAggregateDigest(
-      bundleDir,
-      manifest,
-      files,
-    );
+    manifest.signatureVersion = SIGNATURE_VERSION;
+    const filesAggregate = await computeFilesAggregate(bundleDir, files);
+    const payload = signaturePayloadV2(filesAggregate, manifest);
     manifest.signature = createHmac("sha256", key)
-      .update(aggregateDigest)
+      .update(payload)
       .digest("hex");
   } else {
     delete manifest.signature;
+    delete manifest.signatureVersion;
   }
 
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -220,6 +235,7 @@ export interface VerifyResult {
 export async function verifyPlugin(
   targetDir: string,
   signingKey?: string,
+  options: { allowUnsigned?: boolean } = {},
 ): Promise<VerifyResult> {
   const resolvedPath = path.resolve(process.cwd(), targetDir);
   const bundleDir = await realpath(resolvedPath).catch(() => null);
@@ -273,20 +289,43 @@ export async function verifyPlugin(
     if (!key) {
       errors.push("manifest is signed but no signing key is available");
     } else {
-      const aggregateDigest = await computeAggregateDigest(
-        bundleDir,
-        manifest,
-        files,
-      );
-      const expected = createHmac("sha256", key)
-        .update(aggregateDigest)
-        .digest("hex");
-      if (safeEqualHex(expected, manifest.signature)) {
-        signed = true;
+      const filesAggregate = await computeFilesAggregate(bundleDir, files);
+      let payload: string | undefined;
+      let payloadError: string | undefined;
+      if (manifest.signatureVersion === SIGNATURE_VERSION) {
+        if (!manifest.files) {
+          payloadError = "signatureVersion 2 requires manifest file checksums";
+        } else {
+          payload = signaturePayloadV2(filesAggregate, manifest);
+        }
+      } else if (manifest.signatureVersion !== undefined) {
+        payloadError = `unsupported signatureVersion: ${manifest.signatureVersion}`;
+      } else if (manifest.files) {
+        payload = filesAggregate;
+      } else if (manifest.checksum && entry) {
+        payload = sha256Hex(await readFile(path.join(bundleDir, entry)));
       } else {
-        errors.push("signature verification failed");
+        payloadError =
+          "legacy signature has neither file checksums nor an entry checksum";
+      }
+
+      if (payload === undefined) {
+        errors.push(payloadError ?? "unable to reconstruct signature payload");
+      } else {
+        const expected = createHmac("sha256", key)
+          .update(payload)
+          .digest("hex");
+        if (safeEqualHex(expected, manifest.signature)) {
+          signed = true;
+        } else {
+          errors.push("signature verification failed");
+        }
       }
     }
+  } else if (!options.allowUnsigned) {
+    errors.push(
+      "bundle is unsigned (pass --allow-unsigned to accept unsigned bundles)",
+    );
   }
 
   return { valid: errors.length === 0, signed, errors };
