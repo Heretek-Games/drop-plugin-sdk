@@ -68,9 +68,9 @@ jobs:
       - name: Publish @drop-oss plugin-sdk (new scope, when accessible)
         if: ${{ inputs.publish_new_scope }}
         working-directory: packages/plugin-sdk
-        run: npm publish --access public
+        run: node ../../scripts/publish-legacy-scope.mjs --package plugin-sdk --scope @drop-oss
 
-      - name: Publish @drop-oss/plugin-cli (new scope, when accessible)
+      - name: Publish @drop-oss plugin-cli (new scope, when accessible)
         if: ${{ inputs.publish_new_scope }}
         working-directory: packages/plugin-cli
-        run: npm publish --access public
+        run: node ../../scripts/publish-legacy-scope.mjs --package plugin-cli --scope @drop-oss

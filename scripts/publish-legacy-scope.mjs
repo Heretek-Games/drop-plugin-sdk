@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+/* global process, console */
 
-import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 
@@ -20,12 +21,36 @@ const PACKAGES = {
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const packageArg = args.find((arg, index) => args[index - 1] === "--package");
+const scopeArgIndex = args.indexOf("--scope");
+const scope = scopeArgIndex >= 0 ? args[scopeArgIndex + 1] : LEGACY_SCOPE;
+
+if (scope !== LEGACY_SCOPE && scope !== NEW_SCOPE) {
+  console.error(`Unknown scope '${scope}' (expected ${LEGACY_SCOPE} or ${NEW_SCOPE})`);
+  process.exit(1);
+}
 
 const targets = packageArg ? [packageArg] : Object.keys(PACKAGES);
 
 if (!targets.every((name) => PACKAGES[name])) {
   console.error(`Unknown package(s) ${targets.filter((n) => !PACKAGES[n]).join(", ")}`);
   process.exit(1);
+}
+
+function rewriteSpecifiers(text) {
+  return text
+    .replaceAll(`${NEW_SCOPE}/plugin-sdk`, `${scope}/plugin-sdk`)
+    .replaceAll(`${NEW_SCOPE}/plugin-cli`, `${scope}/plugin-cli`)
+    .replaceAll(`${LEGACY_SCOPE}/plugin-sdk`, `${scope}/plugin-sdk`)
+    .replaceAll(`${LEGACY_SCOPE}/plugin-cli`, `${scope}/plugin-cli`);
+}
+
+function walk(dir, files = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (statSync(full).isDirectory()) walk(full, files);
+    else files.push(full);
+  }
+  return files;
 }
 
 const stagingRoot = path.join(repoRoot, ".legacy-publish");
@@ -43,20 +68,28 @@ for (const name of targets) {
       return !pkg.skip.some((skip) => skip === rel || rel.startsWith(path.join(skip, "/") || skip));
     },
   });
+  for (const file of walk(staged)) {
+    if (!/\.(js|mjs|cjs|json)$/.test(file)) continue;
+    const before = readFileSync(file, "utf-8");
+    if (!before.includes(NEW_SCOPE) && !before.includes(LEGACY_SCOPE)) continue;
+    const after = rewriteSpecifiers(before);
+    if (after !== before) writeFileSync(file, after);
+  }
   const manifestPath = path.join(staged, "package.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-  manifest.name = `${LEGACY_SCOPE}/${name}`;
+  manifest.name = `${scope}/${name}`;
   for (const depKey of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
     if (!manifest[depKey]) continue;
     for (const dep of Object.keys(manifest[depKey])) {
-      if (dep.startsWith(NEW_SCOPE)) {
-        const suffix = dep.slice(NEW_SCOPE.length);
+      if (dep === `${NEW_SCOPE}/plugin-sdk` || dep === `${NEW_SCOPE}/plugin-cli` || dep === `${LEGACY_SCOPE}/plugin-sdk` || dep === `${LEGACY_SCOPE}/plugin-cli`) {
+        const suffix = dep.slice(dep.indexOf("/"));
         const rawVersion = manifest[depKey][dep];
         delete manifest[depKey][dep];
+        const siblingDir = suffix === "/plugin-sdk" ? PACKAGES["plugin-sdk"].dir : PACKAGES["plugin-cli"].dir;
         const concrete = rawVersion.startsWith("workspace:")
-          ? JSON.parse(readFileSync(path.join(repoRoot, PACKAGES[suffix === "/plugin-sdk" ? "plugin-sdk" : "plugin-cli"].dir, "package.json"), "utf-8")).version
+          ? JSON.parse(readFileSync(path.join(repoRoot, siblingDir, "package.json"), "utf-8")).version
           : rawVersion;
-        manifest[depKey][`${LEGACY_SCOPE}${suffix}`] = concrete;
+        manifest[depKey][`${scope}${suffix}`] = concrete;
       }
     }
   }
@@ -69,4 +102,4 @@ for (const name of targets) {
 if (process.env.KEEP_STAGING !== "1") {
   rmSync(stagingRoot, { recursive: true, force: true });
 }
-console.log(dryRun ? `dry-run complete for ${targets.join(", ")}` : `legacy-scope publish complete for ${targets.join(", ")}`);
+console.log(dryRun ? `dry-run complete for ${scope}: ${targets.join(", ")}` : `publish complete for ${scope}: ${targets.join(", ")}`);
