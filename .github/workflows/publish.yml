@@ -7,9 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       publish_legacy_scope:
-        description: "Also publish @droposs/* legacy-scope mirror packages"
+        description: "Publish @droposs/* packages (the accessible scope)"
         type: boolean
         default: true
+      publish_new_scope:
+        description: "Publish @drop-oss/* packages (only once the scope/Trusted Publisher access exists on npmjs.com)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,12 +38,13 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # actions/setup-node@v7.0.0
         with:
           node-version: 22
+          package-manager-cache: false
           # NOTE: no `registry-url` — setup-node would write a dummy
           # //registry.npmjs.org/:_authToken into .npmrc, which disables OIDC
           # trusted publishing.
 
-      - name: Upgrade npm for Trusted Publishing (needs >= 11.5.1)
-        run: npm install -g npm@11.5.1 --ignore-scripts
+      - name: Setup npm for Trusted Publishing (needs >= 11.5.1)
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -50,14 +55,22 @@ jobs:
       - name: Run test suites
         run: pnpm -r run test
 
-      - name: Publish @drop-oss/plugin-sdk
+      - name: Publish @droposs plugin-sdk
+        if: ${{ github.event_name == 'push' || inputs.publish_legacy_scope }}
         working-directory: packages/plugin-sdk
-        run: npm publish --access public --provenance --no-git-checks
+        run: node ../../scripts/publish-legacy-scope.mjs --package plugin-sdk
 
-      - name: Publish @drop-oss/plugin-cli
+      - name: Publish @droposs plugin-cli
+        if: ${{ github.event_name == 'push' || inputs.publish_legacy_scope }}
+        working-directory: packages/plugin-cli
+        run: node ../../scripts/publish-legacy-scope.mjs --package plugin-cli
+
+      - name: Publish @drop-oss plugin-sdk (new scope, when accessible)
+        if: ${{ inputs.publish_new_scope }}
+        working-directory: packages/plugin-sdk
+        run: npm publish --access public --no-git-checks
+
+      - name: Publish @drop-oss/plugin-cli (new scope, when accessible)
+        if: ${{ inputs.publish_new_scope }}
         working-directory: packages/plugin-cli
         run: npm publish --access public --provenance --no-git-checks
-
-      - name: Publish @droposs legacy-scope mirrors
-        if: ${{ github.event_name == 'push' || inputs.publish_legacy_scope }}
-        run: node scripts/publish-legacy-scope.mjs
