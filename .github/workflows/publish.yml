@@ -51,10 +51,12 @@ jobs:
         run: pnpm -r run test
 
       - name: Publish @drop-oss/plugin-sdk
-        run: pnpm --filter @drop-oss/plugin-sdk publish --access public --provenance --no-git-checks
+        working-directory: packages/plugin-sdk
+        run: npm publish --access public --provenance --no-git-checks
 
       - name: Publish @drop-oss/plugin-cli
-        run: pnpm --filter @drop-oss/plugin-cli publish --access public --provenance --no-git-checks
+        working-directory: packages/plugin-cli
+        run: npm publish --access public --provenance --no-git-checks
 
       - name: Publish @droposs legacy-scope mirrors
         if: ${{ github.event_name == 'push' || inputs.publish_legacy_scope }}
