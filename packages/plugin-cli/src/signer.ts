@@ -330,6 +330,7 @@ export async function verifyPlugin(
 
   const entry =
     manifest.entry ?? manifest.server?.entry ?? manifest.client?.entry;
+  await verifySidecars(bundleDir, manifest, files, present, errors);
   if (entry) {
     const entryPath = path.resolve(bundleDir, entry);
     if (!isInside(bundleDir, entryPath)) {
@@ -414,6 +415,94 @@ async function resolveSignedPayload(
   return {
     error: "legacy signature has neither file checksums nor an entry checksum",
   };
+}
+
+/**
+ * Validate the `client.sidecars` declaration against the bundle contents:
+ * each target path must resolve inside the bundle, point to a present regular
+ * file covered by the `files` checksums, and cite a matching SHA-256 of the
+ * binary. Every sidecar name must be allowlisted in `client.commands`, and
+ */
+export async function verifySidecars(
+  bundleDir: string,
+  manifest: Record<string, any>,
+  files: string[],
+  present: Set<string>,
+  errors: string[],
+): Promise<void> {
+  const sidecars: unknown = manifest.client?.sidecars;
+  if (sidecars === undefined) return;
+  if (!Array.isArray(sidecars) || sidecars.length === 0) {
+    errors.push("client.sidecars must be a non-empty array when declared");
+    return;
+  }
+
+  const commands = new Set<string>(
+    Array.isArray(manifest.client?.commands) ? manifest.client.commands : [],
+  );
+  const seenTargets = new Set<string>();
+
+  for (const [idx, sidecar] of sidecars.entries()) {
+    const label = `client.sidecars[${idx}]`;
+    if (
+      typeof sidecar !== "object" ||
+      sidecar === null ||
+      typeof (sidecar as Record<string, unknown>).name !== "string" ||
+      !Array.isArray((sidecar as Record<string, unknown>).targets)
+    ) {
+      errors.push(`${label}: expected { name: string, targets: array }`);
+      continue;
+    }
+    const { name, targets } = sidecar as {
+      name: string;
+      targets: Array<Record<string, unknown>>;
+    };
+
+    if (!commands.has(name)) {
+      errors.push(
+        `${label}: sidecar name '${name}' must be allowlisted in client.commands`,
+      );
+    }
+
+    for (const [tIdx, target] of targets.entries()) {
+      const tLabel = `${label}.targets[${tIdx}]`;
+      const key = `${target.os}-${target.arch}`;
+      if (seenTargets.has(key)) {
+        errors.push(
+          `${tLabel}: duplicate target '${key}' (only one binary per os+arch)`,
+        );
+        continue;
+      }
+      seenTargets.add(key);
+
+      if (
+        typeof target.path !== "string" ||
+        path.isAbsolute(target.path) ||
+        !isInside(bundleDir, path.resolve(bundleDir, target.path))
+      ) {
+        errors.push(`${tLabel}: path must be a bundle-relative path`);
+        continue;
+      }
+      if (isBundleCodeFile(target.path)) {
+        errors.push(
+          `${tLabel}: 'sidecars' paths must not be JavaScript code files`,
+        );
+        continue;
+      }
+      if (!present.has(target.path)) {
+        errors.push(`${tLabel}: declared sidecar file missing: ${target.path}`);
+        continue;
+      }
+      const digest = sha256Hex(
+        await readFile(path.join(bundleDir, target.path)),
+      );
+      if (target.sha256 !== digest) {
+        errors.push(
+          `${tLabel}: sha256 mismatch for ${target.path} (declared ${target.sha256}, actual ${digest})`,
+        );
+      }
+    }
+  }
 }
 
 export async function packPlugin(

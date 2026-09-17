@@ -224,6 +224,49 @@
           "uniqueItems": true,
           "description": "Allowlisted binaries the client plugin may run via ctx.system.run (requires system:command)"
         },
+        "sidecars": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Optional native sidecar binaries bundled with the client plugin; the desktop host stages the target matching the current platform and resolves declared commands against it",
+          "items": {
+            "type": "object",
+            "required": ["name", "targets"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Bare executable name; must also be allowlisted in client.commands"
+              },
+              "targets": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "object",
+                  "required": ["os", "arch", "path", "sha256"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "os": {
+                      "type": "string",
+                      "enum": ["linux", "macos", "windows"]
+                    },
+                    "arch": {
+                      "type": "string",
+                      "enum": ["x64", "arm64"]
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "Bundle-relative path to the platform binary"
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "slots": {
           "type": "array",
           "items": {

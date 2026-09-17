@@ -597,3 +597,199 @@ test("packPlugin leaves the source manifest untouched", async () => {
     await fs.rm(outDir, { recursive: true, force: true });
   }
 });
+
+/* ============================== sidecars ================================== */
+
+/** Client manifest with a sidecar declaration and matching binary on disk. */
+function sidecarManifest(
+  id: string,
+  name: string,
+  sidecarPath: string,
+  sha256: string,
+) {
+  return {
+    id,
+    name,
+    version: "1.0.0",
+    apiVersion: 2,
+    targets: ["client"],
+    capabilities: ["system:sidecar", "system:command"],
+    client: {
+      entry: "index.js",
+      capabilities: ["system:sidecar", "system:command"],
+      commands: ["gse-engine"],
+      sidecars: [
+        {
+          name: "gse-engine",
+          targets: [
+            {
+              os: "linux",
+              arch: "x64",
+              path: "sidecars/linux-x64/gse-engine",
+              sha256,
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+test("verifyPlugin accepts a well-formed sidecar declaration", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "sidecar-ok-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "sidecars", "linux-x64"), {
+      recursive: true,
+    });
+    const binary = Buffer.from("fake-linux-binary");
+    await fs.writeFile(
+      path.join(tmpDir, "sidecars", "linux-x64", "gse-engine"),
+      binary,
+    );
+    const sha256 = createHash("sha256").update(binary).digest("hex");
+
+    await writeBundle(
+      tmpDir,
+      sidecarManifest(
+        "sc-ok",
+        "Sidecar",
+        "sidecars/linux-x64/gse-engine",
+        sha256,
+      ),
+      "export {};",
+    );
+    await signPlugin(tmpDir, "sidecar-test-key");
+
+    const res = await verifyPlugin(tmpDir, "sidecar-test-key");
+    assert.equal(res.valid, true, res.errors.join("; "));
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin rejects sidecars whose name is not allowlisted", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "sidecar-unlisted-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "sidecars", "linux-x64"), {
+      recursive: true,
+    });
+    const binary = Buffer.from("fake-linux-binary");
+    await fs.writeFile(
+      path.join(tmpDir, "sidecars", "linux-x64", "gse-engine"),
+      binary,
+    );
+    const sha256 = createHash("sha256").update(binary).digest("hex");
+
+    const manifest = sidecarManifest(
+      "sc-unlisted",
+      "Sidecar",
+      "sidecars/linux-x64/gse-engine",
+      sha256,
+    );
+    manifest.client.commands = [];
+    await writeBundle(tmpDir, manifest, "export {};");
+    await signPlugin(tmpDir, "sidecar-test-key");
+
+    const res = await verifyPlugin(tmpDir, "sidecar-test-key");
+    assert.equal(res.valid, false);
+    assert.ok(
+      res.errors.some((e) => /must be allowlisted/.test(e)),
+      res.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin rejects sidecar sha256 mismatch and missing files", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "sidecar-bad-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "sidecars", "linux-x64"), {
+      recursive: true,
+    });
+    const binary = Buffer.from("fake-linux-binary");
+    await fs.writeFile(
+      path.join(tmpDir, "sidecars", "linux-x64", "gse-engine"),
+      binary,
+    );
+
+    const manifest = sidecarManifest(
+      "sc-bad",
+      "Sidecar",
+      "sidecars/linux-x64/gse-engine",
+      "0".repeat(64),
+    );
+    await writeBundle(tmpDir, manifest, "export {};");
+    await signPlugin(tmpDir, "sidecar-test-key");
+
+    const res = await verifyPlugin(tmpDir, "sidecar-test-key");
+    assert.equal(res.valid, false);
+    assert.ok(
+      res.errors.some((e) => /sha256 mismatch/.test(e)),
+      res.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("validateManifest accepts a well-formed client.sidecars declaration", async () => {
+  const manifest = {
+    id: "sidecar-schema",
+    name: "Sidecar Schema",
+    version: "1.0.0",
+    apiVersion: 2,
+    targets: ["client"],
+    client: {
+      entry: "index.js",
+      capabilities: ["system:command"],
+      commands: ["gse-engine"],
+      sidecars: [
+        {
+          name: "gse-engine",
+          targets: [
+            {
+              os: "linux",
+              arch: "x64",
+              path: "sidecars/linux-x64/gse-engine",
+              sha256: "a".repeat(64),
+            },
+          ],
+        },
+      ],
+    },
+  };
+  const res = await validateManifest(manifest);
+  assert.equal(res.valid, true, res.errors.join("; "));
+});
+
+test("validateManifest rejects bad sidecar os/arch and digest shapes", async () => {
+  const manifest = {
+    id: "sidecar-schema-bad",
+    name: "Sidecar Schema Bad",
+    version: "1.0.0",
+    apiVersion: 2,
+    targets: ["client"],
+    client: {
+      entry: "index.js",
+      capabilities: ["system:command"],
+      commands: ["gse-engine"],
+      sidecars: [
+        {
+          name: "gse-engine",
+          targets: [
+            {
+              os: "plan9",
+              arch: "itanium",
+              path: "/etc/passwd",
+              sha256: "nothex",
+            },
+          ],
+        },
+      ],
+    },
+  };
+  const res = await validateManifest(manifest);
+  assert.equal(res.valid, false);
+  assert.ok(res.errors.length > 0);
+});

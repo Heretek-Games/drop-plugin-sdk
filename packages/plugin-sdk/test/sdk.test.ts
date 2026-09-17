@@ -597,3 +597,8 @@ test("MockClientPluginContext simulates launch pipeline execution and reverse ro
   assert.equal(ctx.rolledBackStages[1]?.stage, "pre-launch:validate");
   assert.equal(ctx.rolledBackStages[2]?.stage, "pre-launch:validate");
 });
+
+/* ============================== end tests ================================= */
+
+/* (sidecar schema validation tests live in packages/plugin-cli/test/signer.test.ts,
+ *  because validateManifest is exported from plugin-cli.) */
