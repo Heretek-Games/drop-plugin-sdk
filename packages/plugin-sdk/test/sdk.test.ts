@@ -515,3 +515,85 @@ test("assertManifestSupports accepts a matching manifest", () => {
     }),
   );
 });
+
+test("MockClientPluginContext simulates launch pipeline execution and reverse rollback on abort", async () => {
+  const ctx = new MockClientPluginContext("launch-test", ["game:launch-hook"]);
+  const executionLog: string[] = [];
+
+  ctx.registerLaunchHook({
+    stage: "pre-launch:validate",
+    order: 10,
+    execute: () => {
+      executionLog.push("validate-10");
+    },
+  });
+
+  ctx.registerLaunchHook({
+    stage: "pre-launch:validate",
+    order: 5,
+    execute: () => {
+      executionLog.push("validate-5");
+    },
+  });
+
+  ctx.registerLaunchHook({
+    stage: "pre-launch:prepare",
+    execute: () => {
+      executionLog.push("prepare");
+    },
+  });
+
+  ctx.registerLaunchHook({
+    stage: "post-exit:cleanup",
+    execute: () => {
+      executionLog.push("cleanup");
+    },
+  });
+
+  const launchContext = {
+    gameId: "game-123",
+    gameTitle: "Test Game",
+    gameDir: "/games/test",
+  };
+
+  // Normal successful launch
+  const result = await ctx.executeLaunchPipeline(launchContext, async () => {
+    executionLog.push("launch");
+    return 42;
+  });
+
+  assert.equal(result, 42);
+  assert.deepEqual(executionLog, [
+    "validate-5",
+    "validate-10",
+    "prepare",
+    "launch",
+    "cleanup",
+  ]);
+
+  // Launch with failure in pre-launch stage
+  executionLog.length = 0;
+  ctx.registerLaunchHook({
+    stage: "pre-launch:stage",
+    execute: () => {
+      executionLog.push("stage-fail");
+      throw new Error("Staging failed");
+    },
+  });
+
+  let launchCalled = false;
+  await assert.rejects(
+    () =>
+      ctx.executeLaunchPipeline(launchContext, async () => {
+        launchCalled = true;
+      }),
+    /Launch aborted during stage 'pre-launch:stage': Staging failed/,
+  );
+
+  assert.equal(launchCalled, false);
+  // Verify rollback recorded completed stages in reverse order
+  assert.equal(ctx.rolledBackStages.length, 3);
+  assert.equal(ctx.rolledBackStages[0]?.stage, "pre-launch:prepare");
+  assert.equal(ctx.rolledBackStages[1]?.stage, "pre-launch:validate");
+  assert.equal(ctx.rolledBackStages[2]?.stage, "pre-launch:validate");
+});

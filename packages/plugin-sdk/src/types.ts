@@ -578,7 +578,7 @@ export interface MetadataProvider {
 
 export interface ScannedGame {
   externalId: string;
-  store: "steam" | "gog" | "epic" | string;
+  store: "steam" | "gog" | "epic" | (string & {});
   title: string;
   installPath: string;
   executablePath?: string;

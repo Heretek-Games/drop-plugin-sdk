@@ -11,7 +11,9 @@ import type {
   CommandResult,
   GameMenuItem,
   HttpMethod,
+  LaunchContext,
   LaunchHook,
+  LaunchStage,
   MetadataProvider,
   PlayAction,
   PluginLogger,
@@ -375,6 +377,8 @@ export class MockClientPluginContext implements ClientPluginContext {
     return this.serverRequestLog.request<T>(method, path, body);
   }
 
+  public rolledBackStages: LaunchHook[] = [];
+
   async resolvePlayActions(gameId: string): Promise<PlayAction[]> {
     const actions: PlayAction[] = [];
     for (const provider of this.playActionProviders) {
@@ -382,6 +386,77 @@ export class MockClientPluginContext implements ClientPluginContext {
       actions.push(...result);
     }
     return actions;
+  }
+
+  /**
+   * Playnite-style Game Launch Pipeline simulator for testing launch hooks and stage rollbacks.
+   */
+  async executeLaunchPipeline<T>(
+    context: LaunchContext,
+    launchFn: () => Promise<T>,
+  ): Promise<T> {
+    const preLaunchStages: LaunchStage[] = [
+      "pre-launch:validate",
+      "pre-launch:prepare",
+      "pre-launch:stage",
+      "pre-launch:network",
+    ];
+
+    const postExitStages: LaunchStage[] = [
+      "post-exit:cleanup",
+      "post-exit:restore",
+      "post-exit:sync",
+    ];
+
+    const sortHooks = (stages: LaunchStage[]): LaunchHook[] => {
+      return this.launchHooks
+        .filter((h) => stages.includes(h.stage))
+        .sort((a, b) => {
+          const stageDiff = stages.indexOf(a.stage) - stages.indexOf(b.stage);
+          if (stageDiff !== 0) return stageDiff;
+          return (a.order ?? 0) - (b.order ?? 0);
+        });
+    };
+
+    const completedHooks: LaunchHook[] = [];
+    const activePreHooks = sortHooks(preLaunchStages);
+
+    for (const hook of activePreHooks) {
+      try {
+        await hook.execute(context);
+        completedHooks.push(hook);
+      } catch (error) {
+        this.rolledBackStages = [];
+        for (let i = completedHooks.length - 1; i >= 0; i--) {
+          const rollbackHook = completedHooks[i];
+          if (rollbackHook) {
+            this.rolledBackStages.push(rollbackHook);
+          }
+        }
+        throw new Error(
+          `Launch aborted during stage '${hook.stage}': ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error },
+        );
+      }
+    }
+
+    const launchResult = await launchFn();
+
+    const activePostHooks = sortHooks(postExitStages);
+    for (const hook of activePostHooks) {
+      try {
+        await hook.execute(context);
+      } catch (postErr) {
+        this.logger.warn(
+          `Post-exit hook warning on stage ${hook.stage}`,
+          postErr,
+        );
+      }
+    }
+
+    return launchResult;
   }
 
   private assertCapability(cap: ClientCapability): void {
