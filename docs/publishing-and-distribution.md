@@ -48,62 +48,8 @@ The CLI:
 
 You can automate building, testing, signing, and releasing `.dropplugin` packages on every Git tag release.
 
-Create `.github/workflows/release.yml`:
+Use `templates/release-action.yml` as the canonical per-repository release workflow: it runs `npm ci`, builds, tests, validates the manifest, packs the archive, attaches a `.sha256` checksum, and publishes a prerelease automatically for tags like `v1.0.0-rc.1`.
 
-```yaml
-name: Release Drop Plugin
-
-on:
-  push:
-    tags:
-      - "v*"
-
-jobs:
-  release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Run test suite
-        run: npx @drop-oss/plugin-cli test .
-
-      - name: Build bundles
-        run: npx @drop-oss/plugin-cli build .
-
-      - name: Package plugin archive
-        run: npx @drop-oss/plugin-cli pack . ./dist-package
-
-      - name: Compute SHA-256 Checksum
-        id: checksum
-        run: |
-          PACKAGE_FILE=$(ls dist-package/*.dropplugin)
-          echo "file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
-          sha256sum "$PACKAGE_FILE" > "$PACKAGE_FILE.sha256"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            ${{ steps.checksum.outputs.file }}
-            ${{ steps.checksum.outputs.file }}.sha256
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
 
 ---
 

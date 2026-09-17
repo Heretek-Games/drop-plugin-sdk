@@ -13,7 +13,7 @@
 - **`packages/plugin-cli/`**: Contains `@drop-oss/plugin-cli`.
   - `bin/drop-plugin.js`: Executable CLI (`drop-plugin`) providing `sign`, `pack`, `build`, and `test`.
   - `src/signer.ts`: Cryptographic signer computing SHA-256 digests of all files and packaging into `.dropplugin` archives.
-- **`templates/starter-plugin/`**: Golden sample plugin with server and client entry points.
+- **`templates/starter-plugin/`**: Golden sample plugin with server and client entry points. Ships `.sdk-scope.json` + `scripts/switch-sdk-scope.mjs` (npm-scope cutoff switch) and `.github/workflows/release.yml` (`.dropplugin` release pipeline).
 
 ---
 
@@ -39,6 +39,9 @@ pnpm run test
 
 # Publish dry-run
 pnpm run publish:dry-run
+
+# Publish legacy @droposs/* mirror packages (same version line; used by the v* publish workflow)
+node scripts/publish-legacy-scope.mjs --dry-run
 
 # Local publish (requires authenticated npm login)
 pnpm run publish:local

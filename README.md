@@ -15,9 +15,23 @@ Maintained by [Heretek Games](https://github.com/Heretek-Games/drop-plugin-sdk).
 | **`templates/starter-plugin`**                     | `1.0.0` | Reference starter template for creating full-stack Drop plugins (server + desktop client).                                                                             |
 
 > **Scope migration:** v0.6.0 moves the packages from `@droposs/*` to the
-> `@drop-oss/*` scope. The `@droposs/*` release line (0.5.9) remains on npm
-> during the transition; a compatibility alias will be announced once the
-> `@drop-oss` scope is published.
+> `@drop-oss/*` scope. The publish workflow mirrors every release to the legacy
+> `@droposs/*` scope (`scripts/publish-legacy-scope.mjs`), so pre-cutover
+> plugin repositories can keep depending on the `@droposs/plugin-sdk` and
+> `@droposs/plugin-cli` names while both scopes serve the same version line.
+>
+> **Heretek plugin repos:** each plugin repo carries `.sdk-scope.json` and
+> `scripts/switch-sdk-scope.mjs`. The config (`{"sdk": "@droposs" |
+> "@drop-oss"}`, plus `sdkVersion`/`cliVersion`) drives every package.json
+> dependency and import specifier in the repo. The npm scope cutoff is a
+> two-step, reviewable change:
+>
+> 1. Publish the release (`v*` tag) so both scopes carry the version.
+> 2. Flip `.sdk-scope.json` to `"sdk": "@drop-oss"`, then run
+>    `node scripts/switch-sdk-scope.mjs` in each plugin repo.
+>
+> `.github/workflows/release.yml` in every plugin repo builds, validates,
+> packs, checksums, and attaches the `.dropplugin` archive to GitHub Releases.
 
 ---
 

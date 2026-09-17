@@ -44,7 +44,7 @@ jobs:
       - name: Generate checksums
         id: pkg
         run: |
-          FILE=$(find dist-package -name "*.dropplugin" -print -quit)
+          FILE=$(ls dist-package/*.dropplugin | head -n 1)
           echo "path=$FILE" >> "$GITHUB_OUTPUT"
           echo "name=$(basename "$FILE")" >> "$GITHUB_OUTPUT"
           sha256sum "$FILE" > "$FILE.sha256"

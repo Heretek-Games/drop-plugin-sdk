@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      publish_legacy_scope:
+        description: "Also publish @droposs/* legacy-scope mirror packages"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -50,3 +55,7 @@ jobs:
 
       - name: Publish @drop-oss/plugin-cli
         run: pnpm --filter @drop-oss/plugin-cli publish --access public --provenance --no-git-checks
+
+      - name: Publish @droposs legacy-scope mirrors
+        if: ${{ github.event_name == 'push' || inputs.publish_legacy_scope }}
+        run: node scripts/publish-legacy-scope.mjs

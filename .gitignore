@@ -4,3 +4,4 @@ dist/
 *.dropplugin
 dist-package/
 .DS_Store
+.legacy-publish/
