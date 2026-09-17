@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 
@@ -62,7 +62,7 @@ for (const name of targets) {
   }
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   if (!dryRun) {
-    execSync("npm publish --access public --no-git-checks", { cwd: staged, stdio: "inherit" });
+    execSync("npm publish --access public", { cwd: staged, stdio: "inherit" });
   }
 }
 

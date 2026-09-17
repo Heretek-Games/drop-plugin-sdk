@@ -68,9 +68,9 @@ jobs:
       - name: Publish @drop-oss plugin-sdk (new scope, when accessible)
         if: ${{ inputs.publish_new_scope }}
         working-directory: packages/plugin-sdk
-        run: npm publish --access public --no-git-checks
+        run: npm publish --access public
 
       - name: Publish @drop-oss/plugin-cli (new scope, when accessible)
         if: ${{ inputs.publish_new_scope }}
         working-directory: packages/plugin-cli
-        run: npm publish --access public --provenance --no-git-checks
+        run: npm publish --access public
