@@ -22,15 +22,47 @@ export default class StarterClientPlugin implements ClientPlugin {
   async init(ctx: ClientPluginContext): Promise<void> {
     ctx.logger.info("Initializing starter plugin on desktop client...");
 
-    // Register an injected UI panel on game detail pages
+    // Register an injected UI panel on game detail pages.
+    // Use a render function: production builds ship no Vue runtime template
+    // compiler, so raw `template:` strings are rejected by the host.
     ctx.registerSlot(
       "game-detail:panels",
       {
-        template: `
-          <div class="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-300">
-            <span class="font-semibold text-purple-400">Starter Plugin Panel:</span> Injected into game-detail slot successfully.
-          </div>
-        `,
+        render() {
+          const h = (globalThis as Record<string, any>).window?.Vue?.h;
+          if (typeof h === "function") {
+            return h(
+              "div",
+              {
+                class:
+                  "p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-300",
+              },
+              [
+                h(
+                  "span",
+                  { class: "font-semibold text-purple-400" },
+                  "Starter Plugin Panel:",
+                ),
+                " Injected into game-detail slot successfully.",
+              ],
+            );
+          }
+          return {
+            type: "div",
+            props: {
+              class:
+                "p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-300",
+            },
+            children: [
+              {
+                type: "span",
+                props: { class: "font-semibold text-purple-400" },
+                children: "Starter Plugin Panel:",
+              },
+              " Injected into game-detail slot successfully.",
+            ],
+          };
+        },
       },
       { label: "Starter Status", order: 10 },
     );

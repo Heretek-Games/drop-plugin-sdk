@@ -60,16 +60,51 @@ Client plugins can inject custom Vue components into designated UI slots across 
 ctx.registerSlot(
   "game-detail:panels",
   {
-    template: `
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-        <h4 class="text-xs font-semibold text-zinc-200">Custom Extension</h4>
-        <p class="text-xs text-zinc-400 mt-1">Status: Active</p>
-      </div>
-    `,
+    render() {
+      const h = (globalThis.window as any)?.Vue?.h;
+      return h(
+        "div",
+        { class: "rounded-xl border border-zinc-800 bg-zinc-900/60 p-4" },
+        [
+          h(
+            "h4",
+            { class: "text-xs font-semibold text-zinc-200" },
+            "Custom Extension",
+          ),
+          h("p", { class: "text-xs text-zinc-400 mt-1" }, "Status: Active"),
+        ],
+      );
+    },
   },
   { label: "My Panel", order: 10 },
 );
 ```
+
+> [!IMPORTANT]
+> Do **not** register a `template:` string. Drop's production Vue build does not
+> include the runtime template compiler (`vue/dist/vue.esm-bundler.js`), so a
+> component created from a raw template string throws
+> `Component provided template option but runtime compilation is not supported`
+> and is caught by the plugin error boundary. Use a `render()` function
+> (returning `h(...)` vnodes) or a precompiled component instead.
+
+### Installed-Location Caveats for `system.run`
+
+`ctx.system.run` executes allowlisted **bare executable names** only (never
+paths). Resolution happens on the desktop host `PATH`. GUI sessions often omit
+common daemon directories, so the host retries the following well-known
+directories when the binary is not on `PATH`:
+
+| Platform | Additional directories searched                                                                       |
+| :------- | :---------------------------------------------------------------------------------------------------- |
+| Linux    | `/usr/sbin`, `/usr/local/sbin`, `/opt/ZeroTier/One`                                                   |
+| macOS    | `/Library/Application Support/ZeroTier/One`, `/usr/local/bin`, `/usr/local/sbin`, `/opt/homebrew/bin` |
+| Windows  | `Program Files (x86)\ZeroTier\One`, `Program Files\ZeroTier\One`, `ProgramData\ZeroTier\One`          |
+
+Windows batch wrappers (e.g. `zerotier-cli.bat`) are never executed — batch
+files require a shell and are rejected by the no-shell execution model. Plugin
+authors should invoke the underlying executable directly (e.g.
+`zerotier-one.exe -q ...`) in their `manifest.client.commands`.
 
 ---
 

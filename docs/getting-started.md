@@ -117,12 +117,26 @@ export default class MyClientPlugin implements ClientPlugin {
     ctx.registerSlot(
       "game-detail:panels",
       {
-        template: `
-          <div class="rounded-lg border border-purple-500/30 bg-purple-500/10 p-4 text-xs text-purple-200">
-            <p class="font-semibold">My Custom Plugin Panel</p>
-            <p class="text-zinc-400 mt-1">Enhancing your game library experience.</p>
-          </div>
-        `,
+        // Use a render function: production builds ship no Vue runtime
+        // template compiler, so raw `template:` strings are rejected.
+        render() {
+          const h = (globalThis as Record<string, any>).window?.Vue?.h;
+          return h(
+            "div",
+            {
+              class:
+                "rounded-lg border border-purple-500/30 bg-purple-500/10 p-4 text-xs text-purple-200",
+            },
+            [
+              h("p", { class: "font-semibold" }, "My Custom Plugin Panel"),
+              h(
+                "p",
+                { class: "text-zinc-400 mt-1" },
+                "Enhancing your game library experience.",
+              ),
+            ],
+          );
+        },
       },
       { label: "My Plugin", order: 5 },
     );

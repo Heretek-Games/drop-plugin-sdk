@@ -175,8 +175,13 @@ export class MockClientServerRequest {
     body?: unknown,
   ): Promise<T> {
     this.calls.push({ method, path, body });
-    const value = this.responses.has(this.key(method, path))
-      ? this.responses.get(this.key(method, path))
+    const fullKey = this.key(method, path);
+    const basePath = path.split("?")[0];
+    const baseKey = this.key(method, basePath);
+    const value = this.responses.has(fullKey)
+      ? this.responses.get(fullKey)
+      : this.responses.has(baseKey)
+      ? this.responses.get(baseKey)
       : this.fallback;
     return value as T;
   }
