@@ -6,6 +6,7 @@
   "scripts": {
     "build": "drop-plugin build",
     "test": "node --test test/index.test.ts",
+    "typecheck": "tsc --noEmit",
     "validate": "drop-plugin validate"
   },
   "license": "MIT",

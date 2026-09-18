@@ -77,7 +77,7 @@ The `drop-plugin.json` manifest declares plugin metadata, execution targets, req
 
 ### Architecture & Security
 
-- **`apiVersion`** (`integer`, required): Target Drop Plugin API version. Drop core accepts `SUPPORTED_API_VERSIONS` (`[1, 2]`); a manifest that omits it is rejected.
+- **`apiVersion`** (`integer`, required): Target Drop Plugin API version. Drop core accepts `SUPPORTED_API_VERSIONS` (`[1, 2, 3]`); a manifest that omits it is rejected. Version `3` adds the host-populated `PluginContext.settings` snapshot.
 - **`trust`** (`"trusted" | "sandboxed"`, default `"trusted"`): Trust tier. Currently, plugins run in-process as `"trusted"`.
 - **`storageVersion`** (`integer`, optional): Integer schema version for persistent storage migrations.
 - **`targets`** (`Array<"server" | "client">`, optional): Platforms the plugin provides code for.
@@ -109,6 +109,11 @@ The `drop-plugin.json` manifest declares plugin metadata, execution targets, req
     - `default` (any, optional): Default value.
     - `options` (`Array<{ label, value }>`, optional): Choices for `select` fields.
     - `required` (`boolean`, optional): Whether the field must be set.
+
+The host persists rendered values in the plugin's namespaced storage and exposes
+the snapshot as `PluginContext.settings` before `init` (plugin API `3`). Password
+values are available in-process but are redacted from settings API responses and
+logs.
 
 ```json
 {

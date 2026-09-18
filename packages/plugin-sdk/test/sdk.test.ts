@@ -12,10 +12,21 @@ import {
   type ServerCapability,
 } from "../dist/index.js";
 
-test("PLUGIN_API_VERSION is 2", () => {
-  assert.equal(PLUGIN_API_VERSION, 2);
-  assert.deepEqual([...SUPPORTED_API_VERSIONS], [1, 2]);
+test("PLUGIN_API_VERSION is 3", () => {
+  assert.equal(PLUGIN_API_VERSION, 3);
+  assert.deepEqual([...SUPPORTED_API_VERSIONS], [1, 2, 3]);
   assert.equal(SIGNATURE_VERSION, 2);
+});
+
+test("MockPluginContext exposes host-provided settings", () => {
+  const ctx = new MockPluginContext("server-test", ["routes"], {
+    apiKey: "secret",
+    retries: 3,
+  });
+  assert.deepEqual(ctx.settings, { apiKey: "secret", retries: 3 });
+
+  const empty = new MockPluginContext("server-test-empty", ["routes"]);
+  assert.deepEqual(empty.settings, {});
 });
 
 test("MockPluginContext enforces capability gating", () => {

@@ -48,7 +48,7 @@ The CLI:
 
 You can automate building, testing, signing, and releasing `.dropplugin` packages on every Git tag release.
 
-Use `templates/release-action.yml` as the canonical per-repository release workflow: it runs `npm ci`, builds, tests, validates the manifest, packs the archive, attaches a `.sha256` checksum, and publishes a prerelease automatically for tags like `v1.0.0-rc.1`.
+Use `templates/release-action.yml` as the canonical per-repository release workflow: it installs dependencies (`npm ci` when a lockfile exists, `npm install` otherwise), builds, tests, validates the manifest, packs the archive, attaches a `.sha256` checksum, and publishes a prerelease automatically for tags like `v1.0.0-rc.1`. Every scaffolded template under `templates/` ships a copy of this workflow, a matching `ci.yml`, a `typecheck` script, and a `.sdk-scope.json` + `scripts/switch-sdk-scope.mjs` pair, so a freshly scaffolded repo can tag `v1.0.0` and release without manual edits.
 
 
 ---

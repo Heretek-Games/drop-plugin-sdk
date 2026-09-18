@@ -7,6 +7,7 @@
     "build": "drop-plugin build",
     "dev": "drop-plugin dev",
     "test": "node --test test/index.test.ts test/client.test.ts",
+    "typecheck": "tsc --noEmit",
     "validate": "drop-plugin validate"
   },
   "license": "MIT",

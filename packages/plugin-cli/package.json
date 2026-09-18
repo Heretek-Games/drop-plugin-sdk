@@ -1,6 +1,6 @@
 {
   "name": "@drop-oss/plugin-cli",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "Drop Plugin build, test, signing, and packaging CLI for Drop OSS",
   "type": "module",
   "bin": {

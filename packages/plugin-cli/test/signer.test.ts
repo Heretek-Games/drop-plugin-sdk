@@ -227,9 +227,20 @@ test("initPlugin scaffolds a new plugin repository", async () => {
       await fs.readFile(path.join(targetDir, "package.json"), "utf-8"),
     );
     assert.equal(pkg.name, "drop-my-custom-plugin");
+    assert.equal(pkg.dependencies["@droposs/plugin-sdk"], "^0.7.0");
+    assert.equal(pkg.devDependencies["@droposs/plugin-cli"], "^0.7.0");
+    assert.equal(pkg.scripts.typecheck, "tsc --noEmit");
 
     const srcExists = await fs.stat(path.join(targetDir, "src", "index.ts"));
     assert.ok(srcExists.isFile());
+    const src = await fs.readFile(path.join(targetDir, "src", "index.ts"), "utf-8");
+    assert.match(src, /@droposs\/plugin-sdk/);
+    assert.doesNotMatch(src, /@drop-oss\/plugin-sdk/);
+    assert.ok(
+      await fs
+        .stat(path.join(targetDir, ".github", "workflows", "release.yml"))
+        .catch(() => null),
+    );
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
