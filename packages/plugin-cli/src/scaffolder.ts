@@ -25,7 +25,7 @@ export interface InitOptions {
 }
 
 /** npm scopes the templates may resolve the SDK/CLI from. */
-const SDK_SCOPES = ["@drop-oss", "@droposs", "@drop"];
+const SDK_SCOPES = new Set(["@drop-oss", "@droposs", "@drop"]);
 const SKIP_DIRS = new Set([
   "node_modules",
   ".git",
@@ -63,7 +63,7 @@ function parseSdkScope(text: string): SdkScopeConfig | null {
     typeof sdk !== "string" ||
     typeof sdkVersion !== "string" ||
     typeof cliVersion !== "string" ||
-    !SDK_SCOPES.includes(sdk)
+    !SDK_SCOPES.has(sdk)
   ) {
     return null;
   }
@@ -81,6 +81,25 @@ function rewriteSpecifiers(text: string, scope: string): string {
   return out;
 }
 
+function parseDepKind(dep: string): "plugin-sdk" | "plugin-cli" | null {
+  if (dep.endsWith("/plugin-sdk")) return "plugin-sdk";
+  if (dep.endsWith("/plugin-cli")) return "plugin-cli";
+  return null;
+}
+
+function rewriteSection(
+  section: Record<string, string>,
+  config: SdkScopeConfig,
+): void {
+  for (const dep of Object.keys(section)) {
+    const kind = parseDepKind(dep);
+    if (!kind) continue;
+    delete section[dep];
+    section[`${config.sdk}/${kind}`] =
+      kind === "plugin-sdk" ? config.sdkVersion : config.cliVersion;
+  }
+}
+
 function rewritePackageDeps(text: string, config: SdkScopeConfig): string {
   let pkg: Record<string, unknown>;
   try {
@@ -88,24 +107,16 @@ function rewritePackageDeps(text: string, config: SdkScopeConfig): string {
   } catch {
     return text;
   }
-  for (const sectionName of [
+  const sections = [
     "dependencies",
     "devDependencies",
     "peerDependencies",
     "optionalDependencies",
-  ]) {
+  ];
+  for (const sectionName of sections) {
     const section = pkg[sectionName] as Record<string, string> | undefined;
-    if (!section) continue;
-    for (const dep of Object.keys(section)) {
-      const kind = dep.endsWith("/plugin-sdk")
-        ? "plugin-sdk"
-        : dep.endsWith("/plugin-cli")
-          ? "plugin-cli"
-          : null;
-      if (!kind) continue;
-      delete section[dep];
-      section[`${config.sdk}/${kind}`] =
-        kind === "plugin-sdk" ? config.sdkVersion : config.cliVersion;
+    if (section) {
+      rewriteSection(section, config);
     }
   }
   return JSON.stringify(pkg, null, 2) + "\n";
