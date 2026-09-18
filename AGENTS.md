@@ -7,13 +7,17 @@
 ## 1. Architecture
 
 - **`packages/plugin-sdk/`**: Contains `@drop-oss/plugin-sdk`.
-  - `src/types.ts`: Pure TypeScript types matching Drop server's plugin manager contract and desktop client runtime (`PLUGIN_API_VERSION = 2`).
+  - `src/types.ts`: Pure TypeScript types matching Drop server's plugin manager contract and desktop client runtime (`PLUGIN_API_VERSION = 2`), including the `RunnerProvider` (`game:runner`), `AuthProvider` (`auth:provider`), `DepotStorageProvider` (`storage:depot`), and `settingsSchema` contracts.
   - `src/mock.ts`: `MockPluginContext` & `MockPluginStorage` for server plugin testing.
   - `src/client-mock.ts`: `MockClientPluginContext`, `MockScopedGameFs`, and `MockScopedGameScanner` for desktop client testing.
+  - `src/conformance.ts`: Manifest capability conformance helpers, generic over `PluginCapability`.
 - **`packages/plugin-cli/`**: Contains `@drop-oss/plugin-cli`.
-  - `bin/drop-plugin.js`: Executable CLI (`drop-plugin`) providing `sign`, `pack`, `build`, and `test`.
+  - `bin/drop-plugin.js`: Executable CLI (`drop-plugin`) providing `init`, `dev`, `sign`, `pack`, `build`, `validate`, and `test`.
+  - `src/builder.ts`: `esbuild` bundler with `unplugin-vue` SFC compilation, scoped-CSS extraction, a `globalThis.Vue` runtime shim, and watch mode.
+  - `src/devServer.ts`: `drop-plugin dev` watch build + CORS static server for live Drop Desktop loading.
+  - `src/scaffolder.ts`: `init` with `--template` (`starter | client-ui | metadata | store | runner | fullstack`).
   - `src/signer.ts`: Cryptographic signer computing SHA-256 digests of all files and packaging into `.dropplugin` archives.
-- **`templates/starter-plugin/`**: Golden sample plugin with server and client entry points. Ships `.sdk-scope.json` + `scripts/switch-sdk-scope.mjs` (npm-scope cutoff switch) and `.github/workflows/release.yml` (`.dropplugin` release pipeline).
+- **`templates/`**: `starter-plugin` (golden full-stack sample, with `.sdk-scope.json`, scope switch script, and release workflow) plus SPI-specific `template-client-ui`, `template-metadata`, `template-store`, `template-runner`, and `template-fullstack` scaffolds.
 
 ---
 

@@ -8,11 +8,16 @@ Maintained by [Heretek Games](https://github.com/Heretek-Games/drop-plugin-sdk).
 
 ## Packages
 
-| Package                                            | Version | Role                                                                                                                                                                   |
-| :------------------------------------------------- | :------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`@drop-oss/plugin-sdk`** (`packages/plugin-sdk`) | `0.6.2` | Universal runtime types (`PLUGIN_API_VERSION = 2`), JSON Schema, RPC helper client, and test harnesses (`MockPluginContext`, `MockClientPluginContext`).               |
-| **`@drop-oss/plugin-cli`** (`packages/plugin-cli`) | `0.6.2` | Developer CLI (`drop-plugin`) providing scaffolding (`init`), bundling (`build`), validation (`validate`), testing (`test`), signing (`sign`), and packaging (`pack`). |
-| **`templates/starter-plugin`**                     | `1.0.0` | Reference starter template for creating full-stack Drop plugins (server + desktop client).                                                                             |
+| Package                                            | Version | Role                                                                                                                                                                                                        |
+| :------------------------------------------------- | :------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`@drop-oss/plugin-sdk`** (`packages/plugin-sdk`) | `0.6.3` | Universal runtime types (`PLUGIN_API_VERSION = 2`), JSON Schema, RPC helper client, and test harnesses (`MockPluginContext`, `MockClientPluginContext`).                                                    |
+| **`@drop-oss/plugin-cli`** (`packages/plugin-cli`) | `0.6.3` | Developer CLI (`drop-plugin`) providing scaffolding (`init`), bundling (`build`, `dev`), validation (`validate`), testing (`test`), signing (`sign`), and packaging (`pack`). Vue SFC compilation included. |
+| **`templates/starter-plugin`**                     | `1.0.0` | Reference starter template for creating full-stack Drop plugins (server + desktop client).                                                                                                                  |
+| **`templates/template-client-ui`**                 | `1.0.0` | Client UI template with real `.vue` Single File Components and scoped CSS.                                                                                                                                  |
+| **`templates/template-metadata`**                  | `1.0.0` | Metadata provider (`metadata:provider`) server template.                                                                                                                                                    |
+| **`templates/template-store`**                     | `1.0.0` | Store library scanner (`client:library-scan`) client template.                                                                                                                                              |
+| **`templates/template-runner`**                    | `1.0.0` | Compatibility/emulation runner (`game:runner`) client template.                                                                                                                                             |
+| **`templates/template-fullstack`**                 | `1.0.0` | Full-stack server REST + declarative settings + Vue client UI template.                                                                                                                                     |
 
 > **Scope migration:** v0.6.0 moves the packages from `@droposs/*` to the
 > `@drop-oss/*` scope. The publish workflow publishes every release to the
@@ -24,7 +29,7 @@ Maintained by [Heretek Games](https://github.com/Heretek-Games/drop-plugin-sdk).
 >
 > **Heretek plugin repos:** each plugin repo carries `.sdk-scope.json` and
 > `scripts/switch-sdk-scope.mjs`. The config (`{"sdk": "@droposs" |
-> "@drop-oss"}`, plus `sdkVersion`/`cliVersion`) drives every package.json
+"@drop-oss"}`, plus `sdkVersion`/`cliVersion`) drives every package.json
 > dependency and import specifier in the repo. The npm scope cutoff is a
 > two-step, reviewable change:
 >
@@ -42,7 +47,13 @@ Maintained by [Heretek Games](https://github.com/Heretek-Games/drop-plugin-sdk).
 ### 1. Scaffold a New Plugin
 
 ```bash
+# Scaffold a new plugin (default starter template)
 npx @drop-oss/plugin-cli init my-plugin
+
+# Or pick a tailored template
+npx @drop-oss/plugin-cli init my-ui-plugin --template client-ui
+# Templates: starter | client-ui | metadata | store | runner | fullstack
+
 cd my-plugin
 npm install
 ```
@@ -93,8 +104,11 @@ export default class MyClientPlugin implements ClientPlugin {
 ### 3. Build, Validate & Test
 
 ```bash
-# Bundles TS source to ESM dist/ using esbuild and updates drop-plugin.json digests
+# Bundles TS/Vue source to ESM dist/ using esbuild and updates drop-plugin.json digests
 npx drop-plugin build .
+
+# Watch mode + local HTTP server (http://localhost:4567) for live Drop testing
+npx drop-plugin dev .
 
 # Validates drop-plugin.json against official JSON Schema
 npx drop-plugin validate .

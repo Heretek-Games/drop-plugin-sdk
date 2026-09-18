@@ -17,12 +17,31 @@ Welcome to the Drop Plugin Developer Guide. This guide walks you through creatin
 Use the Drop Plugin CLI (`@drop-oss/plugin-cli`) to scaffold a complete plugin repository with TypeScript, build configuration, schema validation, and unit tests:
 
 ```bash
-# Scaffold a new plugin named "my-plugin"
+# Scaffold a new plugin named "my-plugin" (default starter template)
 npx @drop-oss/plugin-cli init my-plugin
 
 cd my-plugin
 pnpm install
 ```
+
+### Choosing a Template
+
+`drop-plugin init` ships tailored templates so you start from the right SPI shape instead of trimming a generic one:
+
+| `--template` | Use case                                                            |
+| :----------- | :------------------------------------------------------------------ |
+| `starter`    | Default hybrid server + client plugin (render-function UI slot).    |
+| `client-ui`  | Desktop UI extension with real `.vue` Single File Components + CSS. |
+| `metadata`   | Server metadata provider (`metadata:provider`).                     |
+| `store`      | Client store library scanner (`client:library-scan`).               |
+| `runner`     | Compatibility/emulation runner (`game:runner`).                     |
+| `fullstack`  | Server REST + declarative `settingsSchema` + Vue client UI.         |
+
+```bash
+npx @drop-oss/plugin-cli init my-ui-plugin --template client-ui --id my-ui-plugin
+```
+
+Templates using `.vue` are compiled by `drop-plugin build` (Vue SFC + scoped CSS extraction); no extra Vite config is required.
 
 ### Directory Structure
 
@@ -260,6 +279,17 @@ npx drop-plugin pack . ./dist-package
 ```
 
 This generates `dist-package/my-plugin-1.0.0.dropplugin`.
+
+### Step E: Live Development (`drop-plugin dev`)
+
+For fast iteration, run the watch server. It rebuilds server and client entries on save, signs the bundle, and serves it over CORS-enabled local HTTP so Drop Desktop can load it without a repack:
+
+```bash
+npx drop-plugin dev . --port 4567
+# [drop-plugin] Client bundle URL: http://localhost:4567/dist/src/client.js
+```
+
+Point Drop Desktop's **Extension Settings → Load Dev Plugin** at the printed client bundle URL; edits hot-reload on the next reload.
 
 ---
 
