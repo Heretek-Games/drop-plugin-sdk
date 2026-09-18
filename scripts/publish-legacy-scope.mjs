@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* global process, console */
 
-import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync, symlinkSync } from "node:fs";
+import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync, symlinkSync, existsSync } from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 
@@ -57,7 +57,7 @@ const stagingRoot = path.join(repoRoot, ".legacy-publish");
 rmSync(stagingRoot, { recursive: true, force: true });
 mkdirSync(stagingRoot, { recursive: true });
 
-for (const name of targets) {
+function stagePackage(name) {
   const pkg = PACKAGES[name];
   const staged = path.join(stagingRoot, name);
   cpSync(path.join(repoRoot, pkg.dir), staged, {
@@ -94,6 +94,12 @@ for (const name of targets) {
     }
   }
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  return staged;
+}
+
+for (const name of targets) {
+  const pkg = PACKAGES[name];
+  const staged = stagePackage(name);
 
   // Post-rewrite smoke testing: ensure staged artifacts pack cleanly and evaluate without errors
   execSync("npm pack --dry-run", { cwd: staged, stdio: "pipe" });
@@ -111,7 +117,11 @@ for (const name of targets) {
         if (item === scope) continue;
         symlinkSync(path.join(srcNodeModules, item), path.join(nodeModulesPath, item), "junction");
       }
+      // Stage the sibling SDK on demand: when plugin-cli is published in a
+      // separate invocation the staging root no longer contains it, and the
+      // smoke test must still be able to resolve the runtime dependency.
       const stagedSdkPath = path.join(stagingRoot, "plugin-sdk");
+      if (!existsSync(stagedSdkPath)) stagePackage("plugin-sdk");
       const scopeDir = path.join(nodeModulesPath, scope);
       mkdirSync(scopeDir, { recursive: true });
       symlinkSync(stagedSdkPath, path.join(scopeDir, "plugin-sdk"), "junction");
