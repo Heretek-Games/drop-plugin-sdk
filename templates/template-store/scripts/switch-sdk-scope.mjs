@@ -3,7 +3,7 @@
 
 import { readdirSync, readFileSync, writeFileSync, existsSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const LEGACY_SCOPE = "@droposs";
 const NEW_SCOPE = "@drop-oss";
@@ -122,12 +122,12 @@ const installDir = process.cwd();
 
 if (existsSync(path.join(installDir, "package-lock.json"))) {
   try {
-    execSync("npm install --no-audit --no-fund", { cwd: installDir, stdio: "inherit" });
+    execFileSync("npm", ["install", "--no-audit", "--no-fund"], { cwd: installDir, stdio: "inherit" });
   } catch {
-    execSync("npm install --no-audit --no-fund --legacy-peer-deps", { cwd: installDir, stdio: "inherit" });
+    execFileSync("npm", ["install", "--no-audit", "--no-fund", "--legacy-peer-deps"], { cwd: installDir, stdio: "inherit" });
   }
 } else if (existsSync(path.join(installDir, "pnpm-lock.yaml"))) {
-  execSync("pnpm install", { cwd: installDir, stdio: "inherit" });
+  execFileSync("pnpm", ["install"], { cwd: installDir, stdio: "inherit" });
 } else {
   console.warn("no lockfile found; skipping dependency install");
 }
