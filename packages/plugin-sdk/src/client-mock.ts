@@ -467,6 +467,7 @@ export class MockClientPluginContext implements ClientPluginContext {
       "pre-launch:prepare",
       "pre-launch:stage",
       "pre-launch:network",
+      "pre-launch:network-post",
     ];
 
     const postExitStages: LaunchStage[] = [

@@ -596,6 +596,78 @@ test("MockClientPluginContext simulates launch pipeline execution and reverse ro
   assert.equal(ctx.rolledBackStages[2]?.stage, "pre-launch:validate");
 });
 
+test("MockClientPluginContext executes pre-launch:network-post after pre-launch:network and before launch", async () => {
+  const ctx = new MockClientPluginContext("network-post-test", ["game:launch-hook"]);
+  const executionLog: string[] = [];
+
+  ctx.registerLaunchHook({
+    stage: "pre-launch:validate",
+    order: 10,
+    execute: () => {
+      executionLog.push("validate");
+    },
+  });
+  ctx.registerLaunchHook({
+    stage: "pre-launch:network",
+    order: 10,
+    execute: () => {
+      executionLog.push("network");
+    },
+  });
+  ctx.registerLaunchHook({
+    stage: "pre-launch:network-post",
+    order: 50,
+    execute: () => {
+      executionLog.push("network-post");
+    },
+  });
+
+  const launchContext = {
+    gameId: "game-123",
+    gameTitle: "Test Game",
+    gameDir: "/games/test",
+  };
+
+  const result = await ctx.executeLaunchPipeline(launchContext, async () => {
+    executionLog.push("launch");
+    return "ok";
+  });
+
+  assert.equal(result, "ok");
+  assert.deepEqual(executionLog, [
+    "validate",
+    "network",
+    "network-post",
+    "launch",
+  ]);
+
+  // An abort in network-post rolls back all earlier pre-launch stages
+  executionLog.length = 0;
+  ctx.registerLaunchHook({
+    stage: "pre-launch:network-post",
+    order: 60,
+    execute: () => {
+      throw new Error("Broadcast refresh failed");
+    },
+  });
+
+  let launchCalled = false;
+  await assert.rejects(
+    () =>
+      ctx.executeLaunchPipeline(launchContext, async () => {
+        launchCalled = true;
+      }),
+    /Launch aborted during stage 'pre-launch:network-post': Broadcast refresh failed/,
+  );
+
+  assert.equal(launchCalled, false);
+  // validate -> network -> network-post(50) completed, then network-post(60) aborted
+  assert.equal(ctx.rolledBackStages.length, 3);
+  assert.equal(ctx.rolledBackStages[0]?.stage, "pre-launch:network-post");
+  assert.equal(ctx.rolledBackStages[1]?.stage, "pre-launch:network");
+  assert.equal(ctx.rolledBackStages[2]?.stage, "pre-launch:validate");
+});
+
 test("MockClientServerRequest falls back to query-stripped base path", async () => {
   const ctx = new MockClientPluginContext("client-test", []);
   ctx.serverRequestLog.setResponse("GET", "/networks/active", { networks: ["net-1"] });
