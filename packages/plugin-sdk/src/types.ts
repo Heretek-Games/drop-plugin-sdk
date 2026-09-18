@@ -34,7 +34,9 @@ export type ServerCapability =
   | "network"
   | "metadata:provider"
   | "commerce:payment"
-  | "cloudsave:provider";
+  | "cloudsave:provider"
+  | "auth:provider"
+  | "storage:depot";
 
 export type ClientCapability =
   | "ui:slot"
@@ -51,7 +53,8 @@ export type ClientCapability =
   | "system:command"
   | "metadata:provider"
   | "client:library-scan"
-  | "cloudsave:provider";
+  | "cloudsave:provider"
+  | "game:runner";
 
 export type PluginCapability = ServerCapability | ClientCapability;
 
@@ -63,6 +66,32 @@ export type PluginCapability = ServerCapability | ClientCapability;
 export type PluginTrust = "trusted" | "sandboxed";
 
 export type PluginStatus = "active" | "disabled" | "error" | "registered";
+
+export type PluginSettingsFieldType =
+  | "string"
+  | "password"
+  | "number"
+  | "boolean"
+  | "select";
+
+export interface PluginSettingsOption {
+  label: string;
+  value: unknown;
+}
+
+export interface PluginSettingsField {
+  key: string;
+  label: string;
+  type: PluginSettingsFieldType;
+  description?: string;
+  default?: unknown;
+  options?: PluginSettingsOption[];
+  required?: boolean;
+}
+
+export interface PluginSettingsSchema {
+  fields: PluginSettingsField[];
+}
 
 export interface PluginMetadata {
   id: string;
@@ -87,6 +116,8 @@ export interface PluginMetadata {
   targets?: PluginTarget[];
   capabilities?: PluginCapability[];
   enabled?: boolean;
+  /** Declarative configuration settings schema rendered automatically by host UIs. */
+  settingsSchema?: PluginSettingsSchema;
 }
 
 export interface PluginManifest extends PluginMetadata {
@@ -182,6 +213,17 @@ export interface PluginStateRecord {
 export interface RouteHandlerContext {
   params: Record<string, string>;
   query: Record<string, string | string[] | undefined>;
+  /**
+   * Request body, pre-parsed by the host for write methods. Falls back to
+   * `undefined` when the request has no body.
+   */
+  body?: unknown;
+  /**
+   * Parse the request body as JSON. Always provided by the Drop host at
+   * runtime; optional in the type so plugin tests can build lightweight
+   * context literals without a full h3 request.
+   */
+  readJson?<T = unknown>(): Promise<T>;
   userId?: string;
   userAcls?: string[];
 }
@@ -303,6 +345,24 @@ export interface PluginContext {
    * Requires the `cloudsave:provider` capability.
    */
   registerCloudSaveResolver(resolver: CloudSavePathResolver): void;
+  /**
+   * Register an authentication provider SPI implementation.
+   * Requires the `auth:provider` capability.
+   */
+  registerAuthProvider?(provider: AuthProvider): void;
+  /**
+   * Register a remote depot storage provider SPI implementation.
+   * Requires the `storage:depot` capability.
+   */
+  registerDepotProvider?(provider: DepotStorageProvider): void;
+  /**
+   * Schedule a recurring background task. Returns an unregister callback.
+   */
+  scheduleTask?(
+    name: string,
+    intervalMs: number,
+    task: () => Promise<void> | void,
+  ): () => void;
 }
 
 export interface ServerPlugin {
@@ -523,6 +583,33 @@ export interface ClientPluginContext {
    * Requires the `cloudsave:provider` capability.
    */
   registerCloudSaveResolver?(resolver: CloudSavePathResolver): () => void;
+  /**
+   * Register a game compatibility runner SPI implementation.
+   * Requires the `game:runner` capability.
+   */
+  registerRunnerProvider?(provider: RunnerProvider): () => void;
+  /**
+   * Programmatically trigger a game launch with optional overrides.
+   */
+  launchGame?(gameId: string, overrides?: LaunchOverrides): Promise<void>;
+  /** Library query services. */
+  library?: {
+    getGames(): Promise<unknown[]>;
+    getGame(gameId: string): Promise<unknown | null>;
+  };
+  /** UI notification and system shell services. */
+  ui?: {
+    showToast(
+      message: string,
+      type?: "info" | "success" | "warn" | "error",
+    ): void;
+    openExternal(url: string): Promise<void>;
+  };
+  /** Local client-side event bus. */
+  events?: {
+    on(event: string, listener: (data: unknown) => void): () => void;
+    emit(event: string, data: unknown): void;
+  };
   gameFs: ScopedGameFs;
   gameScanner: ScopedGameScanner;
   serverWs: ClientPluginWebSocket;
@@ -684,3 +771,79 @@ export interface CloudSavePathResolver {
     gameContext: GameInstallContext,
   ): Promise<CloudSavePattern[]>;
 }
+
+// ==========================================
+// Compatibility & Runner Provider SPI (#10, #13, #18)
+// ==========================================
+
+export type RunnerPlatform =
+  | "windows"
+  | "linux"
+  | "macos"
+  | "rom"
+  | (string & {});
+
+export interface LaunchOverrides {
+  executable?: string;
+  arguments?: string[];
+  environment?: Record<string, string>;
+  workingDirectory?: string;
+  wrapperBin?: string;
+  wrapperArgs?: string[];
+}
+
+export interface RunnerProvider {
+  id: string;
+  name: string;
+  supportedPlatforms: RunnerPlatform[];
+  detect(): Promise<{ available: boolean; version?: string }>;
+  resolveLaunch(context: LaunchContext): Promise<LaunchOverrides>;
+}
+
+// ==========================================
+// Authentication Provider SPI (#12)
+// ==========================================
+
+export interface AuthUser {
+  externalId: string;
+  username: string;
+  email?: string;
+  displayName?: string;
+  groups?: string[];
+}
+
+export interface AuthResult {
+  authenticated: boolean;
+  user?: AuthUser;
+  error?: string;
+  unavailable?: boolean;
+}
+
+export interface AuthProvider {
+  id: string;
+  name: string;
+  authenticate(credentials: {
+    username: string;
+    password: string;
+  }): Promise<AuthResult>;
+}
+
+// ==========================================
+// Remote Depot & Storage Provider SPI (#14, #17, #21)
+// ==========================================
+
+export interface DepotDownloadStream {
+  url?: string;
+  headers?: Record<string, string>;
+  pieceReader?: (offset: number, length: number) => Promise<Uint8Array>;
+}
+
+export interface DepotStorageProvider {
+  id: string;
+  name: string;
+  resolveDepotStream(
+    depotId: string,
+    gameId: string,
+  ): Promise<DepotDownloadStream | null>;
+}
+

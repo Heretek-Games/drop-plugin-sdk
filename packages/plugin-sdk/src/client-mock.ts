@@ -13,10 +13,12 @@ import type {
   HttpMethod,
   LaunchContext,
   LaunchHook,
+  LaunchOverrides,
   LaunchStage,
   MetadataProvider,
   PlayAction,
   PluginLogger,
+  RunnerProvider,
   ScopedGameFs,
   ScopedGameScanner,
   SidebarItem,
@@ -287,6 +289,20 @@ export class MockClientPluginContext implements ClientPluginContext {
   public storeScanners: StoreScanner[] = [];
   public metadataProviders: MetadataProvider[] = [];
   public cloudSaveResolvers: CloudSavePathResolver[] = [];
+  public runnerProviders: RunnerProvider[] = [];
+  public launchedGames: Array<{ gameId: string; overrides?: LaunchOverrides }> =
+    [];
+  public mockGames: Array<{
+    id: string;
+    title: string;
+    [key: string]: unknown;
+  }> = [];
+  public toasts: Array<{
+    message: string;
+    type?: "info" | "success" | "warn" | "error";
+  }> = [];
+  public openedUrls: string[] = [];
+  public localEvents = new Map<string, Set<(data: unknown) => void>>();
 
   public gameFs: MockScopedGameFs;
   public gameScanner: MockScopedGameScanner;
@@ -294,6 +310,21 @@ export class MockClientPluginContext implements ClientPluginContext {
   public serverRequestLog: MockClientServerRequest;
   public systemCommand: MockSystemCommand;
   public system: ClientPluginSystem;
+  public library: {
+    getGames(): Promise<unknown[]>;
+    getGame(gameId: string): Promise<unknown | null>;
+  };
+  public ui: {
+    showToast(
+      message: string,
+      type?: "info" | "success" | "warn" | "error",
+    ): void;
+    openExternal(url: string): Promise<void>;
+  };
+  public events: {
+    on(event: string, listener: (data: unknown) => void): () => void;
+    emit(event: string, data: unknown): void;
+  };
 
   constructor(
     id: string,
@@ -331,6 +362,41 @@ export class MockClientPluginContext implements ClientPluginContext {
       run: async (bin, args, options) => {
         this.assertCapability("system:command");
         return await this.systemCommand.run(bin, args, options);
+      },
+    };
+    this.library = {
+      getGames: async () => [...this.mockGames],
+      getGame: async (gameId: string) =>
+        this.mockGames.find((g) => g.id === gameId) ?? null,
+    };
+    this.ui = {
+      showToast: (
+        message: string,
+        type?: "info" | "success" | "warn" | "error",
+      ) => {
+        this.toasts.push({ message, type });
+      },
+      openExternal: async (url: string) => {
+        this.openedUrls.push(url);
+      },
+    };
+    this.events = {
+      on: (event: string, listener: (data: unknown) => void) => {
+        if (!this.localEvents.has(event)) {
+          this.localEvents.set(event, new Set());
+        }
+        this.localEvents.get(event)!.add(listener);
+        return () => {
+          this.localEvents.get(event)?.delete(listener);
+        };
+      },
+      emit: (event: string, data: unknown) => {
+        const listeners = this.localEvents.get(event);
+        if (listeners) {
+          for (const listener of listeners) {
+            listener(data);
+          }
+        }
       },
     };
   }
@@ -434,6 +500,25 @@ export class MockClientPluginContext implements ClientPluginContext {
       const idx = this.cloudSaveResolvers.indexOf(resolver);
       if (idx !== -1) this.cloudSaveResolvers.splice(idx, 1);
     };
+  }
+
+  registerRunnerProvider(provider: RunnerProvider): () => void {
+    if (!provider || typeof provider.id !== "string" || !provider.id.trim()) {
+      throw new Error("Runner provider must have a valid non-empty id");
+    }
+    this.assertCapability("game:runner");
+    this.runnerProviders.push(provider);
+    return () => {
+      const idx = this.runnerProviders.indexOf(provider);
+      if (idx !== -1) this.runnerProviders.splice(idx, 1);
+    };
+  }
+
+  async launchGame(
+    gameId: string,
+    overrides?: LaunchOverrides,
+  ): Promise<void> {
+    this.launchedGames.push({ gameId, overrides });
   }
 
   async serverRequest<T = unknown>(

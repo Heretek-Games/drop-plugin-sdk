@@ -763,7 +763,134 @@ test("MockClientPluginContext fails closed on storage, gameFs, gameScanner, serv
   );
 });
 
-/* ============================== end tests ================================= */
+test("MockPluginContext registers AuthProvider and DepotStorageProvider with capability gating", async () => {
+  const gatedCtx = new MockPluginContext("gated-server", ["routes"]);
+  assert.throws(
+    () =>
+      gatedCtx.registerAuthProvider({
+        id: "ldap",
+        name: "LDAP Auth",
+        authenticate: async () => ({ authenticated: true }),
+      }),
+    /missing required capability 'auth:provider'/,
+  );
+  assert.throws(
+    () =>
+      gatedCtx.registerDepotProvider({
+        id: "seedbox",
+        name: "Seedbox Depot",
+        resolveDepotStream: async () => null,
+      }),
+    /missing required capability 'storage:depot'/,
+  );
 
-/* (sidecar schema validation tests live in packages/plugin-cli/test/signer.test.ts,
- *  because validateManifest is exported from plugin-cli.) */
+  const fullCtx = new MockPluginContext("full-server", [
+    "auth:provider",
+    "storage:depot",
+  ]);
+  const authProvider = {
+    id: "ldap",
+    name: "LDAP Auth",
+    authenticate: async () => ({ authenticated: true }),
+  };
+  fullCtx.registerAuthProvider(authProvider);
+  assert.equal(fullCtx.authProviders.get("ldap"), authProvider);
+
+  const depotProvider = {
+    id: "seedbox",
+    name: "Seedbox Depot",
+    resolveDepotStream: async () => ({ url: "http://example.com" }),
+  };
+  fullCtx.registerDepotProvider(depotProvider);
+  assert.equal(fullCtx.depotProviders.get("seedbox"), depotProvider);
+
+  let taskRan = false;
+  const unregister = fullCtx.scheduleTask("sync", 5000, () => {
+    taskRan = true;
+  });
+  assert.equal(fullCtx.scheduledTasks.has("sync"), true);
+  await fullCtx.scheduledTasks.get("sync")!.task();
+  assert.equal(taskRan, true);
+  unregister();
+  assert.equal(fullCtx.scheduledTasks.has("sync"), false);
+});
+
+test("MockClientPluginContext registers RunnerProvider and handles launchGame/library/ui/events", async () => {
+  const gatedClient = new MockClientPluginContext("gated-client", ["ui:slot"]);
+  assert.throws(
+    () =>
+      gatedClient.registerRunnerProvider({
+        id: "proton",
+        name: "Proton Runner",
+        supportedPlatforms: ["windows"],
+        detect: async () => ({ available: true, version: "GE-Proton9" }),
+        resolveLaunch: async () => ({ executable: "game.exe" }),
+      }),
+    /missing required capability 'game:runner'/,
+  );
+
+  const fullClient = new MockClientPluginContext("full-client", [
+    "game:runner",
+    "ui:slot",
+  ]);
+  const runner = {
+    id: "proton",
+    name: "Proton Runner",
+    supportedPlatforms: ["windows" as const],
+    detect: async () => ({ available: true, version: "GE-Proton9" }),
+    resolveLaunch: async () => ({
+      wrapperBin: "umu-run",
+      executable: "game.exe",
+    }),
+  };
+  fullClient.registerRunnerProvider(runner);
+  assert.equal(fullClient.runnerProviders.length, 1);
+  assert.equal(fullClient.runnerProviders[0]?.id, "proton");
+
+  // launchGame records launch overrides
+  await fullClient.launchGame("game-42", {
+    executable: "game.exe",
+    arguments: ["-dx11"],
+  });
+  assert.equal(fullClient.launchedGames.length, 1);
+  assert.equal(fullClient.launchedGames[0]?.gameId, "game-42");
+  assert.deepEqual(fullClient.launchedGames[0]?.overrides?.arguments, ["-dx11"]);
+
+  // library service mock
+  fullClient.mockGames = [{ id: "game-42", title: "Awesome Game" }];
+  const games = await fullClient.library.getGames();
+  assert.equal(games.length, 1);
+  const found = await fullClient.library.getGame("game-42");
+  assert.equal((found as { title: string })?.title, "Awesome Game");
+
+  // ui service mock
+  fullClient.ui.showToast("Saved successfully", "success");
+  assert.equal(fullClient.toasts.length, 1);
+  assert.equal(fullClient.toasts[0]?.type, "success");
+  await fullClient.ui.openExternal("https://example.com");
+  assert.equal(fullClient.openedUrls[0], "https://example.com");
+
+  // local events bus mock
+  let received = "";
+  const unsub = fullClient.events.on("game:launched", (data) => {
+    received = String(data);
+  });
+  fullClient.events.emit("game:launched", "game-42");
+  assert.equal(received, "game-42");
+  unsub();
+});
+
+test("assertManifestSupports validates new capabilities", () => {
+  const manifest = {
+    id: "full-featured",
+    capabilities: ["auth:provider" as const, "storage:depot" as const],
+    client: {
+      capabilities: ["game:runner" as const],
+    },
+  };
+  assertManifestSupports(manifest, {
+    server: ["auth:provider", "storage:depot"],
+    client: ["game:runner"],
+  });
+});
+

@@ -1,6 +1,8 @@
 import { MockKeyValueStore } from "./mock-core.js";
 import type {
+  AuthProvider,
   CloudSavePathResolver,
+  DepotStorageProvider,
   HttpMethod,
   MetadataProvider,
   PaymentGateway,
@@ -168,6 +170,12 @@ export class MockPluginContext implements PluginContext {
   public metadataProviders = new Map<string, MetadataProvider>();
   public paymentGateways = new Map<string, PaymentGateway>();
   public cloudSaveResolvers = new Map<string, CloudSavePathResolver>();
+  public authProviders = new Map<string, AuthProvider>();
+  public depotProviders = new Map<string, DepotStorageProvider>();
+  public scheduledTasks = new Map<
+    string,
+    { intervalMs: number; task: () => Promise<void> | void }
+  >();
 
   registerMetadataProvider(provider: MetadataProvider): void {
     if (!provider || typeof provider.id !== "string" || !provider.id.trim()) {
@@ -207,6 +215,41 @@ export class MockPluginContext implements PluginContext {
       );
     }
     this.cloudSaveResolvers.set(resolver.id, resolver);
+  }
+
+  registerAuthProvider(provider: AuthProvider): void {
+    if (!provider || typeof provider.id !== "string" || !provider.id.trim()) {
+      throw new Error("Auth provider must have a valid non-empty id");
+    }
+    this.assertCapability("auth:provider");
+    const existing = this.authProviders.get(provider.id);
+    if (existing && existing !== provider) {
+      throw new Error(`Auth provider '${provider.id}' is already registered`);
+    }
+    this.authProviders.set(provider.id, provider);
+  }
+
+  registerDepotProvider(provider: DepotStorageProvider): void {
+    if (!provider || typeof provider.id !== "string" || !provider.id.trim()) {
+      throw new Error("Depot provider must have a valid non-empty id");
+    }
+    this.assertCapability("storage:depot");
+    const existing = this.depotProviders.get(provider.id);
+    if (existing && existing !== provider) {
+      throw new Error(`Depot provider '${provider.id}' is already registered`);
+    }
+    this.depotProviders.set(provider.id, provider);
+  }
+
+  scheduleTask(
+    name: string,
+    intervalMs: number,
+    task: () => Promise<void> | void,
+  ): () => void {
+    this.scheduledTasks.set(name, { intervalMs, task });
+    return () => {
+      this.scheduledTasks.delete(name);
+    };
   }
 
   private assertCapability(cap: PluginCapability): void {

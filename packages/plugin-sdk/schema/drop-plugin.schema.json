@@ -101,11 +101,49 @@
           "metadata:provider",
           "cloudsave:provider",
           "commerce:payment",
-          "client:library-scan"
+          "client:library-scan",
+          "auth:provider",
+          "storage:depot",
+          "game:runner"
         ]
       },
       "uniqueItems": true,
       "description": "Permissions required by the plugin"
+    },
+    "settingsSchema": {
+      "type": "object",
+      "description": "Declarative configuration schema rendered automatically by host UIs",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "label", "type"],
+            "properties": {
+              "key": { "type": "string" },
+              "label": { "type": "string" },
+              "type": {
+                "type": "string",
+                "enum": ["string", "password", "number", "boolean", "select"]
+              },
+              "description": { "type": "string" },
+              "default": {},
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["label", "value"],
+                  "properties": {
+                    "label": { "type": "string" },
+                    "value": {}
+                  }
+                }
+              },
+              "required": { "type": "boolean" }
+            }
+          }
+        }
+      }
     },
     "enabled": {
       "type": "boolean",
@@ -167,7 +205,9 @@
               "network",
               "metadata:provider",
               "commerce:payment",
-              "cloudsave:provider"
+              "cloudsave:provider",
+              "auth:provider",
+              "storage:depot"
             ]
           }
         },
@@ -212,7 +252,8 @@
               "system:command",
               "metadata:provider",
               "client:library-scan",
-              "cloudsave:provider"
+              "cloudsave:provider",
+              "game:runner"
             ]
           }
         },
