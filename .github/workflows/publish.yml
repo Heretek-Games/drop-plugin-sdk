@@ -44,7 +44,7 @@ jobs:
           # trusted publishing.
 
       - name: Setup npm for Trusted Publishing (needs >= 11.5.1)
-        run: npm install -g npm@latest
+        run: npm install -g npm@^11.5.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

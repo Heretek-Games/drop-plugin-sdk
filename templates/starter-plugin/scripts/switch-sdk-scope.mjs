@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /* global process, console */
 
-import { readdirSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync, existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 
 const LEGACY_SCOPE = "@droposs";
 const NEW_SCOPE = "@drop-oss";
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist-package", "dist-packages"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "dist-package", "dist-packages"]);
 const LOCKFILES = new Set(["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb", "deno.lock"]);
 const TEXT_EXT = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".md", ".yml", ".yaml"]);
 
@@ -31,11 +31,15 @@ if (typeof sdkVersion !== "string" || typeof cliVersion !== "string") {
 
 const OTHER_SCOPES = scope === NEW_SCOPE ? [LEGACY_SCOPE] : [NEW_SCOPE];
 
-function walk(dir, files = []) {
+function walk(dir, files = [], visited = new Set()) {
+  const real = realpathSync(dir);
+  if (visited.has(real)) return files;
+  visited.add(real);
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (SKIP_DIRS.has(entry.name)) continue;
-    if (statSync(full).isDirectory()) walk(full, files);
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isDirectory()) walk(full, files, visited);
     else files.push(full);
   }
   return files;

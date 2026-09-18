@@ -598,6 +598,33 @@ test("MockClientPluginContext simulates launch pipeline execution and reverse ro
   assert.equal(ctx.rolledBackStages[2]?.stage, "pre-launch:validate");
 });
 
+test("MockClientServerRequest falls back to query-stripped base path", async () => {
+  const ctx = new MockClientPluginContext("client-test", []);
+  ctx.serverRequestLog.setResponse("GET", "/networks/active", { networks: ["net-1"] });
+
+  // Exact match
+  const exact = await ctx.serverRequest("GET", "/networks/active");
+  assert.deepEqual(exact, { networks: ["net-1"] });
+
+  // Query parameter fallback
+  const withQuery = await ctx.serverRequest("GET", "/networks/active?gameId=game-123");
+  assert.deepEqual(withQuery, { networks: ["net-1"] });
+
+  // Exact query override takes precedence if set
+  ctx.serverRequestLog.setResponse("GET", "/networks/active?gameId=specific", {
+    networks: ["net-special"],
+  });
+  const specific = await ctx.serverRequest(
+    "GET",
+    "/networks/active?gameId=specific",
+  );
+  assert.deepEqual(specific, { networks: ["net-special"] });
+
+  // Fallback for unmatched route
+  const unknown = await ctx.serverRequest("GET", "/unknown");
+  assert.deepEqual(unknown, {});
+});
+
 /* ============================== end tests ================================= */
 
 /* (sidecar schema validation tests live in packages/plugin-cli/test/signer.test.ts,

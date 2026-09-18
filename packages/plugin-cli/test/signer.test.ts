@@ -688,7 +688,7 @@ test("verifyPlugin rejects sidecars whose name is not allowlisted", async () => 
     );
     manifest.client.commands = [];
     await writeBundle(tmpDir, manifest, "export {};");
-    await signPlugin(tmpDir, "sidecar-test-key");
+    await signPlugin(tmpDir, "sidecar-test-key", false);
 
     const res = await verifyPlugin(tmpDir, "sidecar-test-key");
     assert.equal(res.valid, false);
@@ -720,7 +720,7 @@ test("verifyPlugin rejects sidecar sha256 mismatch and missing files", async () 
       "0".repeat(64),
     );
     await writeBundle(tmpDir, manifest, "export {};");
-    await signPlugin(tmpDir, "sidecar-test-key");
+    await signPlugin(tmpDir, "sidecar-test-key", false);
 
     const res = await verifyPlugin(tmpDir, "sidecar-test-key");
     assert.equal(res.valid, false);
@@ -793,3 +793,125 @@ test("validateManifest rejects bad sidecar os/arch and digest shapes", async () 
   assert.equal(res.valid, false);
   assert.ok(res.errors.length > 0);
 });
+
+test("signPlugin rejects invalid sidecar sha256 when validate is true", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "sidecar-sign-bad-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "sidecars", "linux-x64"), {
+      recursive: true,
+    });
+    const binary = Buffer.from("fake-linux-binary");
+    await fs.writeFile(
+      path.join(tmpDir, "sidecars", "linux-x64", "gse-engine"),
+      binary,
+    );
+
+    const manifest = sidecarManifest(
+      "sc-bad-sign",
+      "Sidecar",
+      "sidecars/linux-x64/gse-engine",
+      "0".repeat(64),
+    );
+    await writeBundle(tmpDir, manifest, "export {};");
+
+    await assert.rejects(
+      () => signPlugin(tmpDir, "sidecar-test-key", true),
+      /Sidecar validation failed/,
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifyPlugin handles null target object gracefully without throwing", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "sidecar-null-target-"));
+  try {
+    const manifest = {
+      id: "sc-null-target",
+      name: "Null Target Sidecar",
+      version: "1.0.0",
+      apiVersion: 2,
+      targets: ["client"],
+      capabilities: ["system:command"],
+      client: {
+        entry: "index.js",
+        capabilities: ["system:command"],
+        commands: ["tool"],
+        sidecars: [
+          {
+            name: "tool",
+            targets: [null as any],
+          },
+        ],
+      },
+    };
+    await writeBundle(tmpDir, manifest, "export {};");
+    await signPlugin(tmpDir, "key", false);
+
+    const res = await verifyPlugin(tmpDir, "key");
+    assert.equal(res.valid, false);
+    assert.ok(
+      res.errors.some((e) => /expected target object/.test(e)),
+      res.errors.join("; "),
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("verifySidecars allows two distinct sidecars to each target the same os+arch", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "sidecar-multi-"));
+  try {
+    await fs.mkdir(path.join(tmpDir, "sidecars", "linux-x64"), {
+      recursive: true,
+    });
+    const bin1 = Buffer.from("binary-1");
+    const bin2 = Buffer.from("binary-2");
+    await fs.writeFile(
+      path.join(tmpDir, "sidecars", "linux-x64", "tool1"),
+      bin1,
+    );
+    await fs.writeFile(
+      path.join(tmpDir, "sidecars", "linux-x64", "tool2"),
+      bin2,
+    );
+    const sha1 = createHash("sha256").update(bin1).digest("hex");
+    const sha2 = createHash("sha256").update(bin2).digest("hex");
+
+    const manifest = {
+      id: "sc-multi",
+      name: "Multi Sidecars",
+      version: "1.0.0",
+      apiVersion: 2,
+      targets: ["client"],
+      capabilities: ["system:command"],
+      client: {
+        entry: "index.js",
+        capabilities: ["system:command"],
+        commands: ["tool1", "tool2"],
+        sidecars: [
+          {
+            name: "tool1",
+            targets: [
+              { os: "linux", arch: "x64", path: "sidecars/linux-x64/tool1", sha256: sha1 },
+            ],
+          },
+          {
+            name: "tool2",
+            targets: [
+              { os: "linux", arch: "x64", path: "sidecars/linux-x64/tool2", sha256: sha2 },
+            ],
+          },
+        ],
+      },
+    };
+    await writeBundle(tmpDir, manifest, "export {};");
+    await signPlugin(tmpDir, "multi-key", true);
+
+    const res = await verifyPlugin(tmpDir, "multi-key");
+    assert.equal(res.valid, true, res.errors.join("; "));
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+

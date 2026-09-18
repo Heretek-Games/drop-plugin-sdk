@@ -253,6 +253,15 @@ export async function signPlugin(
         `Manifest validation failed against schema:\n  ${validation.errors.join("\n  ")}`,
       );
     }
+    const files = await listFiles(bundleDir);
+    const present = new Set(files);
+    const sidecarErrors: string[] = [];
+    await verifySidecars(bundleDir, manifest, files, present, sidecarErrors);
+    if (sidecarErrors.length > 0) {
+      throw new Error(
+        `Sidecar validation failed:\n  ${sidecarErrors.join("\n  ")}`,
+      );
+    }
   }
 
   const derived = await deriveManifest(bundleDir, manifest, signingKey);
@@ -440,8 +449,6 @@ export async function verifySidecars(
   const commands = new Set<string>(
     Array.isArray(manifest.client?.commands) ? manifest.client.commands : [],
   );
-  const seenTargets = new Set<string>();
-
   for (const [idx, sidecar] of sidecars.entries()) {
     const label = `client.sidecars[${idx}]`;
     if (
@@ -464,12 +471,22 @@ export async function verifySidecars(
       );
     }
 
+    const seenTargets = new Set<string>();
+
     for (const [tIdx, target] of targets.entries()) {
       const tLabel = `${label}.targets[${tIdx}]`;
+      if (!target || typeof target !== "object") {
+        errors.push(`${tLabel}: expected target object`);
+        continue;
+      }
+      if (typeof target.os !== "string" || typeof target.arch !== "string") {
+        errors.push(`${tLabel}: expected string os and arch`);
+        continue;
+      }
       const key = `${target.os}-${target.arch}`;
       if (seenTargets.has(key)) {
         errors.push(
-          `${tLabel}: duplicate target '${key}' (only one binary per os+arch)`,
+          `${tLabel}: duplicate target '${key}' (only one binary per os+arch for sidecar '${name}')`,
         );
         continue;
       }

@@ -226,6 +226,7 @@
         },
         "sidecars": {
           "type": "array",
+          "minItems": 1,
           "uniqueItems": true,
           "description": "Optional native sidecar binaries bundled with the client plugin; the desktop host stages the target matching the current platform and resolves declared commands against it",
           "items": {
@@ -239,6 +240,7 @@
               },
               "targets": {
                 "type": "array",
+                "minItems": 1,
                 "uniqueItems": true,
                 "items": {
                   "type": "object",
