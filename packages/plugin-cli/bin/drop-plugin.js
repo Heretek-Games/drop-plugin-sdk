@@ -7,6 +7,7 @@ import {
   initPlugin,
   validateManifest,
   verifyPlugin,
+  startDevServer,
 } from "../dist/index.js";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -52,7 +53,11 @@ function printUsage() {
   console.log(`Drop Plugin CLI (drop-plugin)
 
 Usage:
-  drop-plugin init [dir]         Initialize a new plugin from starter template
+  drop-plugin init [dir]         Initialize a new plugin from template
+                                 (--template <starter|client-ui|metadata|store|runner|fullstack>)
+                                 (--id <id> --name <name> --author <author>)
+  drop-plugin dev [dir]          Start hot-reloading dev server for live Drop testing
+                                 (--port <number>)
   drop-plugin build [dir]        Bundle server/client entry points with esbuild and sign
                                  (--out-manifest <path> keeps the source manifest clean)
   drop-plugin sign [dir]         Calculate SHA-256 digests and sign drop-plugin.json
@@ -85,7 +90,7 @@ async function main() {
   switch (command) {
     case "sign": {
       const outManifest = readFlagValue(args, "--out-manifest");
-      const dir = positionalArg(args, [outManifest]) || ".";
+      const dir = positionalArg(args, [outManifest].filter(Boolean)) || ".";
       const res = await signPlugin(dir, undefined, true, { outManifest });
       console.log(
         `Signed bundle at ${dir}: ${res.fileCount} files verified (signature: ${res.signed ? "yes" : "no"})` +
@@ -104,11 +109,22 @@ async function main() {
     }
     case "build": {
       const outManifest = readFlagValue(args, "--out-manifest");
-      const dir = positionalArg(args, [outManifest]) || ".";
+      const dir = positionalArg(args, [outManifest].filter(Boolean)) || ".";
       const res = await buildPlugin(dir, { outManifest });
       console.log(
         `Built plugin at ${dir} (server: ${res.serverBuilt ? "yes" : "no"}, client: ${res.clientBuilt ? "yes" : "no"})`,
       );
+      break;
+    }
+    case "dev": {
+      const portStr = readFlagValue(args, "--port");
+      const port = portStr ? parseInt(portStr, 10) : undefined;
+      const dir = positionalArg(args, [portStr].filter(Boolean)) || ".";
+      const server = await startDevServer(dir, { port });
+      console.log(`Drop plugin dev server running at ${server.url}`);
+      console.log(`Serving manifest: ${server.manifestUrl}`);
+      console.log(`Press Ctrl+C to stop.`);
+      await new Promise(() => {});
       break;
     }
     case "test": {
@@ -117,8 +133,16 @@ async function main() {
       break;
     }
     case "init": {
-      const dir = args[0] || "my-drop-plugin";
-      const res = await initPlugin(dir);
+      const template = readFlagValue(args, "--template");
+      const id = readFlagValue(args, "--id");
+      const name = readFlagValue(args, "--name");
+      const author = readFlagValue(args, "--author");
+      const dir =
+        positionalArg(
+          args,
+          [template, id, name, author].filter(Boolean),
+        ) || (id ? id : "my-drop-plugin");
+      const res = await initPlugin(dir, { template, id, name, author });
       console.log(
         `Initialized new Drop plugin '${res.id}' at ${res.targetPath}`,
       );

@@ -1,10 +1,45 @@
 import path from "node:path";
 import { cp, mkdir, readFile, writeFile, stat } from "node:fs/promises";
 
+export type TemplateType =
+  | "starter"
+  | "client-ui"
+  | "metadata"
+  | "store"
+  | "runner"
+  | "fullstack";
+
 export interface InitOptions {
   id?: string;
   name?: string;
   author?: string;
+  template?: string;
+}
+
+export function resolveTemplateFolder(templateName: string = "starter"): string {
+  const norm = templateName.replace(/^template-/, "").toLowerCase();
+  switch (norm) {
+    case "client-ui":
+    case "ui":
+    case "client":
+      return "template-client-ui";
+    case "metadata":
+      return "template-metadata";
+    case "store":
+      return "template-store";
+    case "runner":
+      return "template-runner";
+    case "fullstack":
+    case "full":
+      return "template-fullstack";
+    case "starter":
+    case "default":
+      return "starter-plugin";
+    default:
+      throw new Error(
+        `Unknown template "${templateName}". Available templates: starter, client-ui, metadata, store, runner, fullstack`,
+      );
+  }
 }
 
 export async function initPlugin(
@@ -14,16 +49,25 @@ export async function initPlugin(
   const targetPath = path.resolve(process.cwd(), targetDir);
   await mkdir(targetPath, { recursive: true });
 
+  const folder = resolveTemplateFolder(options.template);
+
   const candidates = [
     path.resolve(
       path.dirname(new URL(import.meta.url).pathname),
-      "../../../templates/starter-plugin",
+      "../../../templates",
+      folder,
     ),
     path.resolve(
       path.dirname(new URL(import.meta.url).pathname),
-      "../templates/starter-plugin",
+      "../../templates",
+      folder,
     ),
-    path.resolve(process.cwd(), "templates/starter-plugin"),
+    path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "../templates",
+      folder,
+    ),
+    path.resolve(process.cwd(), "templates", folder),
   ];
 
   let templateDir: string | null = null;
@@ -35,7 +79,7 @@ export async function initPlugin(
   }
 
   if (!templateDir) {
-    throw new Error("Starter plugin template directory not found");
+    throw new Error(`Plugin template directory for "${folder}" not found`);
   }
 
   await cp(templateDir, targetPath, {
