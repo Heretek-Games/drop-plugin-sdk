@@ -79,19 +79,23 @@
   },
   "checksum": "4be6e9eb395333d01656762da93debc7f50c101ae3e222230e2b75217770580b",
   "files": {
+    ".github/workflows/ci.yml": "4741172bed309e809eb7d7a1ca02ce241fc8edeb2430060bbd680a08a9c20f10",
+    ".github/workflows/release.yml": "999abcf55a425c3c0fb4dcb8442aca189a252a4967a5a7d82c709223ef46c871",
     ".gitignore": "c7ecb5dd064aa6e25e6d7afb4258dc3132295a306a5c1d343676ef541763d0bd",
+    ".sdk-scope.json": "f13936572aca04f0f47da440ed27eb69ea7d5c5b1d0901b69ebd4aa55ce455b6",
     "dist/src/client.css": "16fe4969e12025eba710f5d71939827c8e3db98344fb4cb2f6622ff199f49ad3",
     "dist/src/client.css.map": "aef5ae0e46e30bafcd54d1c0d8a712ca40ac7df0b10ec5254b112345980ef2e0",
     "dist/src/client.js": "ba9114a7de9420db06682108ae4e4952bf60b570041a79d1efee536bf01f220e",
     "dist/src/client.js.map": "e83e8e665da64f3cb85692f8529a32f0e10336cafc430a97a34179f4685dc2e5",
     "dist/src/index.js": "4be6e9eb395333d01656762da93debc7f50c101ae3e222230e2b75217770580b",
     "dist/src/index.js.map": "0c6c706d98afc1913a45cf484c12d6d79b5ef5186c32c4ef35af7b4ff1c1e18f",
-    "package.json": "e1a2e1aaf319cca92c451a11bebe22a65dcf8e51d6794f7ae90c35355f0e64b1",
+    "package.json": "5cf0bd19d8e597dac4cb1c60c67e8ef0255a5a47c5507720a481599ac7623bfb",
+    "scripts/switch-sdk-scope.mjs": "ab740ee477a7f5eb07b5344bd12f8c311d51f49279ad4778668e7e2ea4fef798",
     "src/client.ts": "a8f767ad5ded4ae6ef767a46fcaa0c945fd9098e4cd923473053c9e437e21815",
     "src/components/StatusPanel.vue": "2b8374cfad18715c235b7909ddcd2c45332d664d0f4e89b0e3e6418e5ab02fb6",
     "src/index.ts": "cff4a6b75e96bae971da4272d6ededde5cd88358b466ba861db54d9051d84d60",
     "test/client.test.ts": "8fe9659122b3e331688866813195b101a1ca9c543b5f79787bde8c8538211a29",
-    "test/index.test.ts": "a0cc24ae8d19ff423bb717a3edb4c8e029144ed639ff02200d5d5fa4b028528b",
-    "tsconfig.json": "a31a559ca71e6b0d196fffa84189fbaa4e117b6def7c4f45bd13645fbbfe30b9"
+    "test/index.test.ts": "2ca92c3a328f623e82da8d2b38e155dc24ddd91cbfedd69619b56393137bd777",
+    "tsconfig.json": "ffd407ef4014fe75cbdc6ad897632157a2d8b8f66a03a4d711c6ac1374f4cde2"
   }
 }

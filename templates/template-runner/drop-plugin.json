@@ -28,13 +28,17 @@
   },
   "checksum": "1aed97c00c0d65e276bbe6cc4fb856bcc311eba57dd02aced1050739c25b656e",
   "files": {
+    ".github/workflows/ci.yml": "4741172bed309e809eb7d7a1ca02ce241fc8edeb2430060bbd680a08a9c20f10",
+    ".github/workflows/release.yml": "999abcf55a425c3c0fb4dcb8442aca189a252a4967a5a7d82c709223ef46c871",
     ".gitignore": "c7ecb5dd064aa6e25e6d7afb4258dc3132295a306a5c1d343676ef541763d0bd",
+    ".sdk-scope.json": "f13936572aca04f0f47da440ed27eb69ea7d5c5b1d0901b69ebd4aa55ce455b6",
     "dist/src/client.js": "1aed97c00c0d65e276bbe6cc4fb856bcc311eba57dd02aced1050739c25b656e",
     "dist/src/client.js.map": "a33fa4205bdff524362e0ae3d9fa43160dfa494635b1119be712c91a47d5b7cf",
     "dist/test/client.test.js": "30a5d956c06e06aa230bacb27537a2e02b0865c99215dcb5175733caa99769d1",
-    "package.json": "2f3b4ffaa8a135c11f07818c690841259402200f371bf64c832cf18731d7190c",
+    "package.json": "b129d1090d19b77e37c162af3a91e613f6f5955f3f8b052f0da3798e2028e899",
+    "scripts/switch-sdk-scope.mjs": "ab740ee477a7f5eb07b5344bd12f8c311d51f49279ad4778668e7e2ea4fef798",
     "src/client.ts": "458ac509935463f9b2e2bd6c56144fb12b3434819155432f08403d7b67b03a6e",
     "test/client.test.ts": "de8e38567558d71a95c36ea414f555bda0cb8b46c5e85c73b19d5cbab6bf814c",
-    "tsconfig.json": "a31a559ca71e6b0d196fffa84189fbaa4e117b6def7c4f45bd13645fbbfe30b9"
+    "tsconfig.json": "ffd407ef4014fe75cbdc6ad897632157a2d8b8f66a03a4d711c6ac1374f4cde2"
   }
 }

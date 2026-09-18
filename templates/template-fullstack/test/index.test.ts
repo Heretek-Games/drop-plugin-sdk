@@ -19,7 +19,7 @@ test("MyFullstackPlugin registers status and config routes", async () => {
   const statusRes = (await status.handler(null, {
     params: {},
     query: {},
-    readJson: async () => ({}),
+    readJson: async <T = unknown>() => ({}) as T,
   })) as { ok: boolean };
   assert.equal(statusRes.ok, true);
 
@@ -28,7 +28,7 @@ test("MyFullstackPlugin registers status and config routes", async () => {
   const configRes = (await config.handler(null, {
     params: {},
     query: {},
-    readJson: async () => ({ mode: "full" }),
+    readJson: async <T = unknown>() => ({ mode: "full" }) as T,
   })) as { saved: boolean; synced: number };
   assert.equal(configRes.saved, true);
   assert.equal(configRes.synced, 1);

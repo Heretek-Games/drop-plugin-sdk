@@ -135,6 +135,43 @@ test("initPlugin scaffolds various templates correctly", async () => {
       .catch(() => null),
   );
 
+  // Every template ships the publishing pipeline, scope switch, typecheck
+  // script, and concrete (non-workspace) SDK dependencies.
+  for (const [dir, template] of [
+    [uiDir, "client-ui"],
+    [metaDir, "metadata"],
+    [storeDir, "store"],
+    [runnerDir, "runner"],
+    [fullDir, "fullstack"],
+  ] as const) {
+    for (const rel of [
+      ".github/workflows/release.yml",
+      ".github/workflows/ci.yml",
+      ".sdk-scope.json",
+      "scripts/switch-sdk-scope.mjs",
+    ]) {
+      assert.ok(
+        await fs.stat(path.join(dir, rel)).catch(() => null),
+        `${template} is missing ${rel}`,
+      );
+    }
+    const pkg = JSON.parse(
+      await fs.readFile(path.join(dir, "package.json"), "utf-8"),
+    );
+    assert.ok(pkg.scripts.typecheck, `${template} is missing a typecheck script`);
+    assert.equal(pkg.dependencies["@droposs/plugin-sdk"], "^0.7.0");
+    assert.equal(pkg.devDependencies["@droposs/plugin-cli"], "^0.7.0");
+    assert.equal(pkg.dependencies["@drop-oss/plugin-sdk"], undefined);
+    assert.equal(pkg.devDependencies["@drop-oss/plugin-cli"], undefined);
+  }
+
+  const runnerSrc = await fs.readFile(
+    path.join(runnerDir, "src/client.ts"),
+    "utf-8",
+  );
+  assert.match(runnerSrc, /@droposs\/plugin-sdk/);
+  assert.doesNotMatch(runnerSrc, /@drop-oss\/plugin-sdk/);
+
   await fs.rm(tmp, { recursive: true, force: true });
 });
 
