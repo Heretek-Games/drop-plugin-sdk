@@ -47,8 +47,8 @@
     },
     "apiVersion": {
       "type": "integer",
-      "enum": [1, 2],
-      "description": "Target Drop Plugin API version. Required; supported values are 1 and 2"
+      "enum": [1, 2, 3],
+      "description": "Target Drop Plugin API version. Required; supported values are 1, 2, and 3"
     },
     "trust": {
       "type": "string",

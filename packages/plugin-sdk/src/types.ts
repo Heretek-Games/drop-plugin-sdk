@@ -3,14 +3,15 @@
  * contract changes incompatibly. Plugins declare the version they were built
  * against in `metadata.apiVersion`; mismatches are rejected at registration.
  */
-export const PLUGIN_API_VERSION = 2;
+export const PLUGIN_API_VERSION = 3;
 
 /**
  * Plugin API versions Drop accepts at registration. `1` covers legacy
- * single-target bundles, `2` the universal server/client manifest. Declaring
- * an unsupported version (or omitting `apiVersion` entirely) fails closed.
+ * single-target bundles, `2` the universal server/client manifest, and `3`
+ * adds host-populated `PluginContext.settings`. Declaring an unsupported
+ * version (or omitting `apiVersion` entirely) fails closed.
  */
-export const SUPPORTED_API_VERSIONS = [1, 2] as const;
+export const SUPPORTED_API_VERSIONS = [1, 2, 3] as const;
 
 /**
  * Current bundle signature scheme. `2` means `signature` covers the file
@@ -105,7 +106,7 @@ export interface PluginMetadata {
   /**
    * Plugin API version the plugin was built against. Required: Drop rejects
    * plugins that omit it rather than defaulting to the current version.
-   * Supported values are `SUPPORTED_API_VERSIONS` (`1` and `2`).
+   * Supported values are `SUPPORTED_API_VERSIONS` (`1`, `2`, and `3`).
    */
   apiVersion: number;
   /** Trust tier. Defaults to "trusted". */
@@ -298,6 +299,14 @@ export interface PluginContext {
   id: string;
   logger: PluginLogger;
   storage: PluginStorage;
+  /**
+   * Read-only snapshot of the values the host persisted for this plugin's
+   * `metadata.settingsSchema`, loaded before `init`. Includes `password`
+   * fields because plugins run trusted in-process; the host still redacts
+   * those values from settings API responses and logs. Empty or absent when
+   * the plugin declares no `settingsSchema`.
+   */
+  settings?: Readonly<Record<string, unknown>>;
   registerRoute(
     method: HttpMethod,
     pattern: string,

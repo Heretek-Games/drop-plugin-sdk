@@ -7,7 +7,7 @@
 ## 1. Architecture
 
 - **`packages/plugin-sdk/`**: Contains `@drop-oss/plugin-sdk`.
-  - `src/types.ts`: Pure TypeScript types matching Drop server's plugin manager contract and desktop client runtime (`PLUGIN_API_VERSION = 2`), including the `RunnerProvider` (`game:runner`), `AuthProvider` (`auth:provider`), `DepotStorageProvider` (`storage:depot`), and `settingsSchema` contracts.
+  - `src/types.ts`: Pure TypeScript types matching Drop server's plugin manager contract and desktop client runtime (`PLUGIN_API_VERSION = 3`), including the `RunnerProvider` (`game:runner`), `AuthProvider` (`auth:provider`), `DepotStorageProvider` (`storage:depot`), `settingsSchema`, and `PluginContext.settings` contracts.
   - `src/mock.ts`: `MockPluginContext` & `MockPluginStorage` for server plugin testing.
   - `src/client-mock.ts`: `MockClientPluginContext`, `MockScopedGameFs`, and `MockScopedGameScanner` for desktop client testing.
   - `src/conformance.ts`: Manifest capability conformance helpers, generic over `PluginCapability`.
@@ -23,7 +23,7 @@
 
 ## 2. Invariants
 
-- **`PLUGIN_API_VERSION` compatibility**: Always keep `PLUGIN_API_VERSION = 2` in sync with Drop core. Bumping the version requires major semver bump.
+- **`PLUGIN_API_VERSION` compatibility**: Keep `PLUGIN_API_VERSION = 3` in sync with Drop core (`SUPPORTED_API_VERSIONS = [1, 2, 3]`). Pre-1.0 breaking contract changes land in a minor release.
 - **Capability Gating**: Ensure `MockPluginContext` and `MockClientPluginContext` enforce capability checks.
 - **Confinement in Signer**: `signer.ts` must always prevent path traversal (`..` or symlink escapes).
 

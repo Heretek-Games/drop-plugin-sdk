@@ -70,6 +70,7 @@ export class MockPluginContext implements PluginContext {
   public id: string;
   public logger: PluginLogger;
   public storage: PluginStorage;
+  public settings: Record<string, unknown>;
   public capabilities: Set<PluginCapability>;
 
   public routes = new Map<
@@ -92,10 +93,12 @@ export class MockPluginContext implements PluginContext {
       "events",
       "network",
     ],
+    settings: Record<string, unknown> = {},
   ) {
     this.id = id;
     this.logger = new MockPluginLogger();
     this.capabilities = new Set(capabilities);
+    this.settings = settings;
     this.storage = this.capabilities.has("storage")
       ? new MockPluginStorage()
       : guardStorage(id);

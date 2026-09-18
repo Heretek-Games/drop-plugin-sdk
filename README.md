@@ -10,8 +10,8 @@ Maintained by [Heretek Games](https://github.com/Heretek-Games/drop-plugin-sdk).
 
 | Package                                            | Version | Role                                                                                                                                                                                                        |
 | :------------------------------------------------- | :------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`@drop-oss/plugin-sdk`** (`packages/plugin-sdk`) | `0.6.3` | Universal runtime types (`PLUGIN_API_VERSION = 2`), JSON Schema, RPC helper client, and test harnesses (`MockPluginContext`, `MockClientPluginContext`).                                                    |
-| **`@drop-oss/plugin-cli`** (`packages/plugin-cli`) | `0.6.3` | Developer CLI (`drop-plugin`) providing scaffolding (`init`), bundling (`build`, `dev`), validation (`validate`), testing (`test`), signing (`sign`), and packaging (`pack`). Vue SFC compilation included. |
+| **`@drop-oss/plugin-sdk`** (`packages/plugin-sdk`) | `0.7.0` | Universal runtime types (`PLUGIN_API_VERSION = 3`), JSON Schema, RPC helper client, and test harnesses (`MockPluginContext`, `MockClientPluginContext`).                                                    |
+| **`@drop-oss/plugin-cli`** (`packages/plugin-cli`) | `0.7.0` | Developer CLI (`drop-plugin`) providing scaffolding (`init`), bundling (`build`, `dev`), validation (`validate`), testing (`test`), signing (`sign`), and packaging (`pack`). Vue SFC compilation included. |
 | **`templates/starter-plugin`**                     | `1.0.0` | Reference starter template for creating full-stack Drop plugins (server + desktop client).                                                                                                                  |
 | **`templates/template-client-ui`**                 | `1.0.0` | Client UI template with real `.vue` Single File Components and scoped CSS.                                                                                                                                  |
 | **`templates/template-metadata`**                  | `1.0.0` | Metadata provider (`metadata:provider`) server template.                                                                                                                                                    |
@@ -131,7 +131,7 @@ npx drop-plugin pack . ./dist-package
 
 ## Architecture & Invariants
 
-- **`PLUGIN_API_VERSION = 2`**: Target API version matching Drop's plugin manager contract.
+- **`PLUGIN_API_VERSION = 3`**: Target API version matching Drop's plugin manager contract. Drop also accepts versions `1` and `2`.
 - **Strict Confinement**: `signer` and `pack` enforce strict filesystem confinement, rejecting directory traversal (`..`) and symlinks escaping the bundle directory.
 - **Capability Gating**: All server and client capabilities must be explicitly declared in `drop-plugin.json`. Undeclared API calls throw in runtime and mock harnesses.
 - **Zero Runtime Dependencies**: `@drop-oss/plugin-sdk` contains zero third-party runtime dependencies.
