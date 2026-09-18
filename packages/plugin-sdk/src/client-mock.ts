@@ -216,6 +216,60 @@ export class MockSystemCommand implements ClientPluginSystem {
   }
 }
 
+function guardClientStorage(pluginId: string): ClientPluginStorage {
+  const deny = (operation: string): never => {
+    throw new Error(
+      `Client plugin '${pluginId}' missing required capability 'client:storage' (${operation})`,
+    );
+  };
+  return {
+    get: async () => deny("storage.get"),
+    set: async () => deny("storage.set"),
+    delete: async () => deny("storage.delete"),
+    listKeys: async () => deny("storage.listKeys"),
+  };
+}
+
+function guardGameFs(pluginId: string): MockScopedGameFs {
+  const deny = (operation: string): never => {
+    throw new Error(
+      `Client plugin '${pluginId}' missing required capability 'game:fs' (${operation})`,
+    );
+  };
+  const guarded = new MockScopedGameFs();
+  guarded.readFile = async () => deny("gameFs.readFile");
+  guarded.writeFile = async () => deny("gameFs.writeFile");
+  guarded.backupFile = async () => deny("gameFs.backupFile");
+  guarded.restoreFile = async () => deny("gameFs.restoreFile");
+  guarded.fileExists = async () => deny("gameFs.fileExists");
+  guarded.deleteFile = async () => deny("gameFs.deleteFile");
+  return guarded;
+}
+
+function guardGameScanner(pluginId: string): MockScopedGameScanner {
+  const deny = (operation: string): never => {
+    throw new Error(
+      `Client plugin '${pluginId}' missing required capability 'game:scan' (${operation})`,
+    );
+  };
+  const guarded = new MockScopedGameScanner();
+  guarded.scanExecutables = async () => deny("gameScanner.scanExecutables");
+  guarded.findFiles = async () => deny("gameScanner.findFiles");
+  return guarded;
+}
+
+function guardClientWs(pluginId: string): MockClientPluginWebSocket {
+  const deny = (operation: string): never => {
+    throw new Error(
+      `Client plugin '${pluginId}' missing required capability 'client:ws' (${operation})`,
+    );
+  };
+  const guarded = new MockClientPluginWebSocket();
+  guarded.send = async () => deny("serverWs.send");
+  guarded.subscribe = () => deny("serverWs.subscribe");
+  return guarded;
+}
+
 export class MockClientPluginContext implements ClientPluginContext {
   public id: string;
   public logger: PluginLogger;
@@ -258,11 +312,19 @@ export class MockClientPluginContext implements ClientPluginContext {
   ) {
     this.id = id;
     this.logger = new MockPluginLogger();
-    this.storage = new MockClientPluginStorage();
     this.capabilities = new Set(capabilities);
-    this.gameFs = new MockScopedGameFs();
-    this.gameScanner = new MockScopedGameScanner();
-    this.serverWs = new MockClientPluginWebSocket();
+    this.storage = this.capabilities.has("client:storage")
+      ? new MockClientPluginStorage()
+      : guardClientStorage(id);
+    this.gameFs = this.capabilities.has("game:fs")
+      ? new MockScopedGameFs()
+      : guardGameFs(id);
+    this.gameScanner = this.capabilities.has("game:scan")
+      ? new MockScopedGameScanner()
+      : guardGameScanner(id);
+    this.serverWs = this.capabilities.has("client:ws")
+      ? new MockClientPluginWebSocket()
+      : guardClientWs(id);
     this.serverRequestLog = new MockClientServerRequest();
     this.systemCommand = new MockSystemCommand();
     this.system = {

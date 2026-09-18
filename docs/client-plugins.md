@@ -53,6 +53,8 @@ Client plugins can inject custom Vue components into designated UI slots across 
 | `"settings:tabs"`       | Settings view       | Custom plugin configuration tabs                |
 | `"topbar:status"`       | Top navigation bar  | Global indicators (e.g. VPN status, peer count) |
 | `"sidebar:nav"`         | Left sidebar        | Additional primary navigation links             |
+| `"overlay:panel"`       | In-game overlay     | Dedicated overlay panel for the active title    |
+| `"overlay:quick-access"`| In-game overlay     | Quick-action buttons within the in-game overlay |
 
 ### Registering a Slot
 
@@ -252,3 +254,37 @@ if (result.code === 0) {
 ```
 
 Attempting to run a binary not declared in `manifest.client.commands` is blocked immediately.
+
+### Bundled Native Sidecars (`system:sidecar` Capability)
+
+Client plugins can also bundle platform-specific native binaries (e.g. `gse-engine`, compatibility helpers) inside the `.dropplugin` archive using the `client.sidecars` declaration:
+
+```json
+{
+  "client": {
+    "capabilities": ["system:command", "system:sidecar"],
+    "commands": ["my-tool"],
+    "sidecars": [
+      {
+        "name": "my-tool",
+        "targets": [
+          {
+            "os": "linux",
+            "arch": "x64",
+            "path": "sidecars/linux-x64/my-tool",
+            "sha256": "abcdef..."
+          },
+          {
+            "os": "windows",
+            "arch": "x64",
+            "path": "sidecars/windows-x64/my-tool.exe",
+            "sha256": "123456..."
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+When the client plugin activates, the desktop host matches the current OS and CPU architecture, verifies the SHA-256 digest, stages the binary into `~/.local/share/drop/plugins/<pluginId>/sidecars/`, and routes calls to `ctx.system.run("my-tool", ...)` to the verified staged binary.

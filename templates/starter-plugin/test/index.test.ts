@@ -17,7 +17,10 @@ test("StarterPlugin registers /ping route and updates storage", async () => {
   const route = ctx.routes.get("GET /ping");
   assert.ok(route);
 
-  const res = (await route.handler(null, { params: {}, query: {} })) as any;
+  const res = (await route.handler(null, { params: {}, query: {} })) as {
+    status: string;
+    time: number;
+  };
   assert.equal(res.status, "ok");
 
   const runCount = await ctx.storage.get("run_count");

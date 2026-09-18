@@ -82,6 +82,22 @@ The `drop-plugin.json` manifest declares plugin metadata, execution targets, req
 - **`storageVersion`** (`integer`, optional): Integer schema version for persistent storage migrations.
 - **`targets`** (`Array<"server" | "client">`, optional): Platforms the plugin provides code for.
 
+### Target Blocks & Native Sidecars
+
+- **`server`** (`object`, optional): Server target definition:
+  - `entry` (`string`, required): Relative path to bundled server JavaScript.
+  - `source` (`string`, optional): TypeScript/JavaScript source file bundled by `drop-plugin build`.
+  - `capabilities` (`Array<ServerCapability>`, optional): Documentation mirror of server capabilities.
+  - `storageVersion` (`integer`, optional): Target storage schema version.
+- **`client`** (`object`, optional): Desktop client target definition:
+  - `entry` (`string`, required): Relative path to bundled client JavaScript.
+  - `source` (`string`, optional): TypeScript/JavaScript source file bundled by `drop-plugin build`.
+  - `css` (`string`, optional): Optional stylesheet associated with client entry.
+  - `capabilities` (`Array<ClientCapability>`, required): Capabilities granted to client runtime.
+  - `commands` (`string[]`, optional): Bare binary names permitted for `ctx.system.run`.
+  - `slots` (`Array<{ slot, component }>`, optional): Declarative UI slot bindings.
+  - `sidecars` (`Array<{ name, targets }>`, optional): Bundled platform binaries staged by the desktop host. Each target specifies `os` (`"linux" | "macos" | "windows"`), `arch` (`"x64" | "arm64"`), bundle-relative `path`, and SHA-256 `sha256`. The `name` must also be listed in `commands`.
+
 ---
 
 ## Capability Scoping
@@ -128,26 +144,33 @@ Capabilities are **strictly fail-closed**. If an API is called without the corre
 
 ### Server Capabilities
 
-| Capability  | Permitted Operations                                                  |
-| :---------- | :-------------------------------------------------------------------- |
-| `routes`    | Registering HTTP routes via `ctx.registerRoute`                       |
-| `storage`   | Persistent KV access via `ctx.storage` and migrations                 |
-| `websocket` | Claiming channels via `ctx.registerWebSocket` and authorizers         |
-| `events`    | Emitting and listening to server events via `broadcast` / `subscribe` |
-| `network`   | External HTTP egress via `ctx.fetch`                                  |
+| Capability           | Permitted Operations                                                  |
+| :------------------- | :-------------------------------------------------------------------- |
+| `routes`             | Registering HTTP routes via `ctx.registerRoute`                       |
+| `storage`            | Persistent KV access via `ctx.storage` and migrations                 |
+| `websocket`          | Claiming channels via `ctx.registerWebSocket` and authorizers         |
+| `events`             | Emitting and listening to server events via `broadcast` / `subscribe` |
+| `network`            | External HTTP egress via `ctx.fetch`                                  |
+| `metadata:provider`  | Registering metadata providers via `ctx.registerMetadataProvider`     |
+| `commerce:payment`   | Registering payment gateways via `ctx.registerPaymentGateway`         |
+| `cloudsave:provider` | Registering cloud save resolvers via `ctx.registerCloudSaveResolver`  |
 
 ### Client Capabilities
 
-| Capability         | Permitted Operations                                                     |
-| :----------------- | :----------------------------------------------------------------------- |
-| `ui:slot`          | Injecting Vue components into UI slots via `ctx.registerSlot`            |
-| `ui:play-action`   | Dynamic alternative game startup modes via `ctx.registerPlayAction`      |
-| `ui:context-menu`  | Adding context menu items on game entries via `ctx.registerGameMenuItem` |
-| `ui:sidebar`       | Adding custom sidebar links with real-time progress indicators           |
-| `ui:topbar`        | Adding status items to the top navigation bar                            |
-| `game:launch-hook` | Registering pre-launch and post-exit hooks with rollback                 |
-| `game:fs`          | Scoped filesystem read/write/backup/restore in game folder               |
-| `game:scan`        | Computing executable hashes and searching install files by path pattern  |
-| `client:storage`   | LocalStorage access isolated by plugin ID                                |
-| `client:ws`        | Real-time messaging with server plugin WebSocket channels                |
-| `system:command`   | Running allowlisted native binaries declared in `client.commands`        |
+| Capability            | Permitted Operations                                                     |
+| :-------------------- | :----------------------------------------------------------------------- |
+| `ui:slot`             | Injecting Vue components into UI slots via `ctx.registerSlot`            |
+| `ui:play-action`      | Dynamic alternative game startup modes via `ctx.registerPlayAction`      |
+| `ui:context-menu`     | Adding context menu items on game entries via `ctx.registerGameMenuItem` |
+| `ui:sidebar`          | Adding custom sidebar links with real-time progress indicators           |
+| `ui:topbar`           | Adding status items to the top navigation bar                            |
+| `game:launch-hook`    | Registering pre-launch and post-exit hooks with rollback                 |
+| `game:fs`             | Scoped filesystem read/write/backup/restore in game folder               |
+| `game:scan`           | Computing executable hashes and searching install files by path pattern  |
+| `client:storage`      | LocalStorage access isolated by plugin ID                                |
+| `client:ws`           | Real-time messaging with server plugin WebSocket channels                |
+| `system:command`      | Running allowlisted native binaries declared in `client.commands`        |
+| `system:sidecar`      | Packaging and staging native sidecar binaries in `client.sidecars`       |
+| `metadata:provider`   | Registering client metadata providers via `ctx.registerMetadataProvider`|
+| `client:library-scan` | Registering store library scanners via `ctx.registerStoreScanner`       |
+| `cloudsave:provider`  | Registering client cloud save resolvers via `ctx.registerCloudSaveResolver` |

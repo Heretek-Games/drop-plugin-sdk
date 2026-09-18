@@ -10,7 +10,7 @@ import {
 import { createRequire } from "node:module";
 import path from "node:path";
 import Ajv from "ajv";
-import { SIGNATURE_VERSION } from "@drop-oss/plugin-sdk";
+import { SIGNATURE_VERSION, type PluginManifest } from "@drop-oss/plugin-sdk";
 
 const MANIFEST_FILE = "drop-plugin.json";
 
@@ -119,7 +119,6 @@ export async function validateManifest(
 ): Promise<{ valid: boolean; errors: string[] }> {
   if (!cachedValidator) {
     const schema = await loadSchema();
-    // @ts-ignore
     const AjvClass = Ajv.default ?? Ajv;
     const ajv = new AjvClass({ allErrors: true, strict: false });
     const compiled = ajv.compile(schema);
@@ -127,7 +126,8 @@ export async function validateManifest(
       const ok = compiled(data);
       if (!ok && compiled.errors) {
         cachedErrors = compiled.errors.map(
-          (err: any) => `${err.instancePath || "/"} ${err.message}`,
+          (err: { instancePath?: string; message?: string }) =>
+            `${err.instancePath || "/"} ${err.message}`,
         );
       } else {
         cachedErrors = [];
@@ -182,10 +182,10 @@ export interface SignPluginOptions {
  */
 async function deriveManifest(
   bundleDir: string,
-  manifest: Record<string, any>,
+  manifest: PluginManifest & Record<string, unknown>,
   signingKey?: string,
 ): Promise<{
-  manifest: Record<string, any>;
+  manifest: PluginManifest & Record<string, unknown>;
   fileCount: number;
   signed: boolean;
 }> {
@@ -398,7 +398,7 @@ export async function verifyPlugin(
  */
 async function resolveSignedPayload(
   bundleDir: string,
-  manifest: Record<string, any>,
+  manifest: PluginManifest & Record<string, unknown>,
   filesAggregate: string,
   entry: string | undefined,
 ): Promise<{ payload?: string; error?: string }> {
@@ -434,7 +434,7 @@ async function resolveSignedPayload(
  */
 export async function verifySidecars(
   bundleDir: string,
-  manifest: Record<string, any>,
+  manifest: PluginManifest & Record<string, unknown>,
   files: string[],
   present: Set<string>,
   errors: string[],
@@ -542,11 +542,21 @@ export async function packPlugin(
     );
   }
 
+  const files = await listFiles(bundleDir);
+  const present = new Set(files);
+  const sidecarErrors: string[] = [];
+  await verifySidecars(bundleDir, rawManifest, files, present, sidecarErrors);
+  if (sidecarErrors.length > 0) {
+    throw new Error(
+      `Sidecar validation failed:\n  ${sidecarErrors.join("\n  ")}`,
+    );
+  }
+
   // Derive the signed manifest in memory: packing must not dirty the source
   // tree, the derived fields live in the archive only.
   const { manifest } = await deriveManifest(bundleDir, rawManifest);
-  const id = manifest.id;
-  const version = manifest.version;
+  const id = manifest.id as string | undefined;
+  const version = manifest.version as string | undefined;
 
   if (!id || !version) {
     throw new Error("Plugin manifest must specify 'id' and 'version'");
@@ -557,7 +567,6 @@ export async function packPlugin(
     : path.join(bundleDir, "dist-package");
   await mkdir(outDir, { recursive: true });
 
-  const files = await listFiles(bundleDir);
   const bundleMap: Record<string, string> = {};
 
   for (const rel of files) {

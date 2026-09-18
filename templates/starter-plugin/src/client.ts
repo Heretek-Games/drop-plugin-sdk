@@ -29,7 +29,11 @@ export default class StarterClientPlugin implements ClientPlugin {
       "game-detail:panels",
       {
         render() {
-          const h = (globalThis as Record<string, any>).window?.Vue?.h;
+          const h = (
+            globalThis as unknown as {
+              window?: { Vue?: { h?: (...args: unknown[]) => unknown } };
+            }
+          ).window?.Vue?.h;
           if (typeof h === "function") {
             return h(
               "div",

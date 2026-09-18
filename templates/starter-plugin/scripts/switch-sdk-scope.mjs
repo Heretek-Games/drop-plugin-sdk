@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* global process, console */
 
-import { readdirSync, readFileSync, statSync, writeFileSync, existsSync, realpathSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 

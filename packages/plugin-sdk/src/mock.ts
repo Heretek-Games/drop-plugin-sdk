@@ -29,16 +29,16 @@ export class MockPluginStorage
 }
 
 export class MockPluginLogger implements PluginLogger {
-  info(msg: string, ...args: any[]): void {
+  info(msg: string, ...args: unknown[]): void {
     console.log(`[INFO] ${msg}`, ...args);
   }
-  warn(msg: string, ...args: any[]): void {
+  warn(msg: string, ...args: unknown[]): void {
     console.warn(`[WARN] ${msg}`, ...args);
   }
-  error(msg: string, ...args: any[]): void {
+  error(msg: string, ...args: unknown[]): void {
     console.error(`[ERROR] ${msg}`, ...args);
   }
-  debug(msg: string, ...args: any[]): void {
+  debug(msg: string, ...args: unknown[]): void {
     console.debug(`[DEBUG] ${msg}`, ...args);
   }
 }

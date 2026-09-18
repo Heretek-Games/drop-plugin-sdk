@@ -840,7 +840,7 @@ test("verifyPlugin handles null target object gracefully without throwing", asyn
         sidecars: [
           {
             name: "tool",
-            targets: [null as any],
+            targets: [null as unknown as { os: string; arch: string; path: string; sha256: string }],
           },
         ],
       },
@@ -910,6 +910,45 @@ test("verifySidecars allows two distinct sidecars to each target the same os+arc
 
     const res = await verifyPlugin(tmpDir, "multi-key");
     assert.equal(res.valid, true, res.errors.join("; "));
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("packPlugin rejects invalid sidecar sha256 or missing binary", async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "sidecar-pack-test-"));
+  try {
+    const manifest = {
+      id: "sc-pack-test",
+      name: "Sidecar Pack Test",
+      version: "1.0.0",
+      apiVersion: 2,
+      targets: ["client"],
+      capabilities: ["system:command"],
+      client: {
+        entry: "index.js",
+        capabilities: ["system:command"],
+        commands: ["gse-engine"],
+        sidecars: [
+          {
+            name: "gse-engine",
+            targets: [
+              {
+                os: "linux",
+                arch: "x64",
+                path: "sidecars/linux-x64/gse-engine",
+                sha256: "0".repeat(64),
+              },
+            ],
+          },
+        ],
+      },
+    };
+    await writeBundle(tmpDir, manifest, "export {};");
+    await assert.rejects(
+      () => packPlugin(tmpDir),
+      /Sidecar validation failed/,
+    );
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* global process, console */
 
-import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { cpSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync, symlinkSync } from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 
@@ -94,8 +94,39 @@ for (const name of targets) {
     }
   }
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+
+  // Post-rewrite smoke testing: ensure staged artifacts pack cleanly and evaluate without errors
+  execSync("npm pack --dry-run", { cwd: staged, stdio: "pipe" });
+  if (name === "plugin-sdk") {
+    execSync('node --input-type=module -e "import * as sdk from \'./dist/index.js\'; if (typeof sdk.PLUGIN_API_VERSION !== \'number\') process.exit(1);"', {
+      cwd: staged,
+      stdio: "pipe",
+    });
+  } else if (name === "plugin-cli") {
+    const nodeModulesPath = path.join(staged, "node_modules");
+    try {
+      mkdirSync(nodeModulesPath, { recursive: true });
+      const srcNodeModules = path.join(repoRoot, pkg.dir, "node_modules");
+      for (const item of readdirSync(srcNodeModules)) {
+        if (item === scope) continue;
+        symlinkSync(path.join(srcNodeModules, item), path.join(nodeModulesPath, item), "junction");
+      }
+      const stagedSdkPath = path.join(stagingRoot, "plugin-sdk");
+      const scopeDir = path.join(nodeModulesPath, scope);
+      mkdirSync(scopeDir, { recursive: true });
+      symlinkSync(stagedSdkPath, path.join(scopeDir, "plugin-sdk"), "junction");
+      execSync('node --input-type=module -e "import * as cli from \'./dist/index.js\'; if (typeof cli.signPlugin !== \'function\') process.exit(1);"', {
+        cwd: staged,
+        stdio: "pipe",
+      });
+    } finally {
+      rmSync(nodeModulesPath, { recursive: true, force: true });
+    }
+  }
+
   if (!dryRun) {
-    execSync("npm publish --access public", { cwd: staged, stdio: "inherit" });
+    const provenanceFlag = (args.includes("--provenance") || (process.env.GITHUB_ACTIONS === "true" && process.env.NPM_PROVENANCE === "true")) ? " --provenance" : "";
+    execSync(`npm publish --access public${provenanceFlag}`, { cwd: staged, stdio: "inherit" });
   }
 }
 

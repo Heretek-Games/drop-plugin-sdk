@@ -9,8 +9,6 @@ import {
   assertManifestSupports,
   compareCapabilities,
   getManifestCapabilities,
-  type PlayAction,
-  type LaunchHook,
   type ServerCapability,
 } from "../dist/index.js";
 
@@ -84,7 +82,7 @@ test("MockClientPluginContext registers UI slots and Play Actions", async () => 
   assert.equal(slots[0].order, 10);
 
   // Play Action
-  ctx.registerPlayAction((gameId) => [
+  ctx.registerPlayAction((_gameId) => [
     {
       id: "action-multiplayer",
       name: "Play Multiplayer Room",
@@ -140,7 +138,7 @@ test("PluginRpcClient sends messages through WebSocket mock", async () => {
     ws: ctx.serverWs,
   });
 
-  let received: any = null;
+  let received: unknown = null;
   rpc.subscribeWs("my-channel", (data) => {
     received = data;
   });
@@ -178,7 +176,7 @@ test("MockPluginContext registers metadata providers and payment gateways", () =
   ctx.registerPaymentGateway({
     id: "stripe",
     name: "Stripe",
-    createPaymentIntent: async (req) => ({
+    createPaymentIntent: async (_req) => ({
       intentId: "pi_123",
       status: "pending",
     }),
@@ -331,7 +329,7 @@ test("MockPluginContext and MockClientPluginContext register and gate CloudSaveP
   serverCtx.registerCloudSaveResolver({
     id: "ludusavi-server",
     name: "Ludusavi Server Resolver",
-    resolveSavePaths: async (context) => [
+    resolveSavePaths: async (_context) => [
       { pattern: "%APPDATA%/SaveGames", platform: "windows" },
     ],
   });
@@ -354,7 +352,7 @@ test("MockPluginContext and MockClientPluginContext register and gate CloudSaveP
   const unregister = clientCtx.registerCloudSaveResolver({
     id: "ludusavi-client",
     name: "Ludusavi Client Resolver",
-    resolveSavePaths: async (context) => [
+    resolveSavePaths: async (_context) => [
       { pattern: "~/.local/share/saves", platform: "linux" },
     ],
   });
@@ -623,6 +621,74 @@ test("MockClientServerRequest falls back to query-stripped base path", async () 
   // Fallback for unmatched route
   const unknown = await ctx.serverRequest("GET", "/unknown");
   assert.deepEqual(unknown, {});
+});
+
+test("MockClientPluginContext fails closed on storage, gameFs, gameScanner, serverWs when capabilities are undeclared", async () => {
+  const ctx = new MockClientPluginContext("restricted-client", ["ui:slot"]);
+
+  // Storage fails closed without 'client:storage'
+  await assert.rejects(
+    () => ctx.storage.get("key"),
+    /missing required capability 'client:storage'/,
+  );
+  await assert.rejects(
+    () => ctx.storage.set("key", "value"),
+    /missing required capability 'client:storage'/,
+  );
+  await assert.rejects(
+    () => ctx.storage.delete("key"),
+    /missing required capability 'client:storage'/,
+  );
+  await assert.rejects(
+    () => ctx.storage.listKeys(),
+    /missing required capability 'client:storage'/,
+  );
+
+  // gameFs fails closed without 'game:fs'
+  await assert.rejects(
+    () => ctx.gameFs.readFile("game-1", "file.txt"),
+    /missing required capability 'game:fs'/,
+  );
+  await assert.rejects(
+    () => ctx.gameFs.writeFile("game-1", "file.txt", "data"),
+    /missing required capability 'game:fs'/,
+  );
+  await assert.rejects(
+    () => ctx.gameFs.backupFile("game-1", "file.txt"),
+    /missing required capability 'game:fs'/,
+  );
+  await assert.rejects(
+    () => ctx.gameFs.restoreFile("game-1", "file.txt"),
+    /missing required capability 'game:fs'/,
+  );
+  await assert.rejects(
+    () => ctx.gameFs.fileExists("game-1", "file.txt"),
+    /missing required capability 'game:fs'/,
+  );
+  await assert.rejects(
+    () => ctx.gameFs.deleteFile("game-1", "file.txt"),
+    /missing required capability 'game:fs'/,
+  );
+
+  // gameScanner fails closed without 'game:scan'
+  await assert.rejects(
+    () => ctx.gameScanner.scanExecutables("game-1"),
+    /missing required capability 'game:scan'/,
+  );
+  await assert.rejects(
+    () => ctx.gameScanner.findFiles("game-1", ["*.exe"]),
+    /missing required capability 'game:scan'/,
+  );
+
+  // serverWs fails closed without 'client:ws'
+  await assert.rejects(
+    () => ctx.serverWs.send("channel", {}),
+    /missing required capability 'client:ws'/,
+  );
+  assert.throws(
+    () => ctx.serverWs.subscribe("channel", () => {}),
+    /missing required capability 'client:ws'/,
+  );
 });
 
 /* ============================== end tests ================================= */
