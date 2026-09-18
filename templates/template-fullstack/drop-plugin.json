@@ -1,0 +1,97 @@
+{
+  "$schema": "https://droposs.org/schemas/drop-plugin.schema.json",
+  "id": "my-fullstack-plugin",
+  "name": "My Fullstack Plugin",
+  "version": "1.0.0",
+  "description": "Drop fullstack plugin with a server REST API, declarative settings, and a Vue client UI",
+  "author": "Heretek Games",
+  "license": "MIT",
+  "apiVersion": 2,
+  "targets": [
+    "server",
+    "client"
+  ],
+  "trust": "trusted",
+  "storageVersion": 1,
+  "capabilities": [
+    "routes",
+    "storage",
+    "network",
+    "events"
+  ],
+  "server": {
+    "entry": "dist/src/index.js",
+    "source": "src/index.ts",
+    "capabilities": [
+      "routes",
+      "storage",
+      "network",
+      "events"
+    ]
+  },
+  "client": {
+    "entry": "dist/src/client.js",
+    "source": "src/client.ts",
+    "capabilities": [
+      "ui:slot",
+      "client:storage"
+    ],
+    "css": "dist/src/client.css"
+  },
+  "settingsSchema": {
+    "fields": [
+      {
+        "key": "apiKey",
+        "label": "API Key",
+        "type": "password",
+        "description": "Secret token used to authenticate against the remote service.",
+        "required": true
+      },
+      {
+        "key": "syncIntervalMinutes",
+        "label": "Sync Interval (minutes)",
+        "type": "number",
+        "default": 30
+      },
+      {
+        "key": "enabled",
+        "label": "Enable background sync",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "mode",
+        "label": "Sync Mode",
+        "type": "select",
+        "default": "incremental",
+        "options": [
+          {
+            "label": "Incremental",
+            "value": "incremental"
+          },
+          {
+            "label": "Full",
+            "value": "full"
+          }
+        ]
+      }
+    ]
+  },
+  "checksum": "4be6e9eb395333d01656762da93debc7f50c101ae3e222230e2b75217770580b",
+  "files": {
+    ".gitignore": "c7ecb5dd064aa6e25e6d7afb4258dc3132295a306a5c1d343676ef541763d0bd",
+    "dist/src/client.css": "16fe4969e12025eba710f5d71939827c8e3db98344fb4cb2f6622ff199f49ad3",
+    "dist/src/client.css.map": "aef5ae0e46e30bafcd54d1c0d8a712ca40ac7df0b10ec5254b112345980ef2e0",
+    "dist/src/client.js": "ba9114a7de9420db06682108ae4e4952bf60b570041a79d1efee536bf01f220e",
+    "dist/src/client.js.map": "e83e8e665da64f3cb85692f8529a32f0e10336cafc430a97a34179f4685dc2e5",
+    "dist/src/index.js": "4be6e9eb395333d01656762da93debc7f50c101ae3e222230e2b75217770580b",
+    "dist/src/index.js.map": "0c6c706d98afc1913a45cf484c12d6d79b5ef5186c32c4ef35af7b4ff1c1e18f",
+    "package.json": "e1a2e1aaf319cca92c451a11bebe22a65dcf8e51d6794f7ae90c35355f0e64b1",
+    "src/client.ts": "a8f767ad5ded4ae6ef767a46fcaa0c945fd9098e4cd923473053c9e437e21815",
+    "src/components/StatusPanel.vue": "2b8374cfad18715c235b7909ddcd2c45332d664d0f4e89b0e3e6418e5ab02fb6",
+    "src/index.ts": "cff4a6b75e96bae971da4272d6ededde5cd88358b466ba861db54d9051d84d60",
+    "test/client.test.ts": "8fe9659122b3e331688866813195b101a1ca9c543b5f79787bde8c8538211a29",
+    "test/index.test.ts": "a0cc24ae8d19ff423bb717a3edb4c8e029144ed639ff02200d5d5fa4b028528b",
+    "tsconfig.json": "a31a559ca71e6b0d196fffa84189fbaa4e117b6def7c4f45bd13645fbbfe30b9"
+  }
+}

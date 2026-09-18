@@ -1,0 +1,22 @@
+{
+  "name": "drop-template-client-ui",
+  "version": "1.0.0",
+  "description": "Drop desktop client UI extension with Vue Single File Components",
+  "type": "module",
+  "scripts": {
+    "build": "drop-plugin build",
+    "dev": "drop-plugin dev",
+    "test": "node --test test/client.test.ts",
+    "validate": "drop-plugin validate"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@drop-oss/plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@drop-oss/plugin-cli": "workspace:*",
+    "@types/node": "^26.5.1",
+    "typescript": "^5.7.0",
+    "vue": "^3.5.0"
+  }
+}

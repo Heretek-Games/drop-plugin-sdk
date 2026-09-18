@@ -1,0 +1,22 @@
+{
+  "name": "drop-template-fullstack",
+  "version": "1.0.0",
+  "description": "Drop fullstack plugin with a server REST API, declarative settings, and a Vue client UI",
+  "type": "module",
+  "scripts": {
+    "build": "drop-plugin build",
+    "dev": "drop-plugin dev",
+    "test": "node --test test/index.test.ts test/client.test.ts",
+    "validate": "drop-plugin validate"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@drop-oss/plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@drop-oss/plugin-cli": "workspace:*",
+    "@types/node": "^26.5.1",
+    "typescript": "^5.7.0",
+    "vue": "^3.5.0"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "drop-template-store",
+  "version": "1.0.0",
+  "description": "Drop client library scanner for importing games from external stores",
+  "type": "module",
+  "scripts": {
+    "build": "drop-plugin build",
+    "test": "node --test test/client.test.ts",
+    "validate": "drop-plugin validate"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@drop-oss/plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@drop-oss/plugin-cli": "workspace:*",
+    "@types/node": "^26.5.1",
+    "typescript": "^5.7.0"
+  }
+}

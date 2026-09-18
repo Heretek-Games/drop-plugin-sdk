@@ -1,0 +1,40 @@
+{
+  "$schema": "https://droposs.org/schemas/drop-plugin.schema.json",
+  "id": "my-runner-plugin",
+  "name": "My Compatibility Runner",
+  "version": "1.0.0",
+  "description": "Drop compatibility and emulation runner plugin",
+  "author": "Heretek Games",
+  "license": "MIT",
+  "apiVersion": 2,
+  "targets": [
+    "client"
+  ],
+  "trust": "trusted",
+  "storageVersion": 1,
+  "capabilities": [
+    "game:runner",
+    "system:command",
+    "client:storage"
+  ],
+  "client": {
+    "entry": "dist/src/client.js",
+    "source": "src/client.ts",
+    "capabilities": [
+      "game:runner",
+      "system:command",
+      "client:storage"
+    ]
+  },
+  "checksum": "1aed97c00c0d65e276bbe6cc4fb856bcc311eba57dd02aced1050739c25b656e",
+  "files": {
+    ".gitignore": "c7ecb5dd064aa6e25e6d7afb4258dc3132295a306a5c1d343676ef541763d0bd",
+    "dist/src/client.js": "1aed97c00c0d65e276bbe6cc4fb856bcc311eba57dd02aced1050739c25b656e",
+    "dist/src/client.js.map": "a33fa4205bdff524362e0ae3d9fa43160dfa494635b1119be712c91a47d5b7cf",
+    "dist/test/client.test.js": "30a5d956c06e06aa230bacb27537a2e02b0865c99215dcb5175733caa99769d1",
+    "package.json": "2f3b4ffaa8a135c11f07818c690841259402200f371bf64c832cf18731d7190c",
+    "src/client.ts": "458ac509935463f9b2e2bd6c56144fb12b3434819155432f08403d7b67b03a6e",
+    "test/client.test.ts": "de8e38567558d71a95c36ea414f555bda0cb8b46c5e85c73b19d5cbab6bf814c",
+    "tsconfig.json": "a31a559ca71e6b0d196fffa84189fbaa4e117b6def7c4f45bd13645fbbfe30b9"
+  }
+}

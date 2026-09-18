@@ -1,0 +1,42 @@
+{
+  "$schema": "https://droposs.org/schemas/drop-plugin.schema.json",
+  "id": "my-client-ui-plugin",
+  "name": "My Client UI Plugin",
+  "version": "1.0.0",
+  "description": "Drop desktop client UI extension with Vue Single File Components",
+  "author": "Heretek Games",
+  "license": "MIT",
+  "apiVersion": 2,
+  "targets": [
+    "client"
+  ],
+  "trust": "trusted",
+  "storageVersion": 1,
+  "capabilities": [
+    "ui:slot",
+    "client:storage"
+  ],
+  "client": {
+    "entry": "dist/src/client.js",
+    "source": "src/client.ts",
+    "capabilities": [
+      "ui:slot",
+      "client:storage"
+    ],
+    "css": "dist/src/client.css"
+  },
+  "checksum": "639af61b6c28f29ede8d001f5b1545c6c78b3360af1dc68d56fcf502fadaefc7",
+  "files": {
+    ".gitignore": "c7ecb5dd064aa6e25e6d7afb4258dc3132295a306a5c1d343676ef541763d0bd",
+    "dist/src/client.css": "a7e80bda51554013cce91e4a153dd4598f63e8334da9a1d69b6f492d0f848629",
+    "dist/src/client.css.map": "58159ed3c29742d2d044de6e304a03806cf1c6ef0405136cce3e2613e94ffc4f",
+    "dist/src/client.js": "639af61b6c28f29ede8d001f5b1545c6c78b3360af1dc68d56fcf502fadaefc7",
+    "dist/src/client.js.map": "0a5a2907dea7b026cccbf4469520b5a4b4a97185a2a474b6b1d25ce38ac6b640",
+    "dist/test/client.test.js": "7234144f610006dd7b56e689580a68e6bc090c5c4ead137c90313d0e32260708",
+    "package.json": "45f7f8d41de9a5a4c6c246faee3359a3de9a6e89cc2bcc38caeeaff92dabccb4",
+    "src/client.ts": "d6584c900faf826bcc5f45a900853110ff586591a295414c7386ef4c7d76e4c3",
+    "src/components/MyPanel.vue": "f92d837fe157e4cf48ceef4c77d2b1f46e52d1b34e6548163a928ee61df8fe55",
+    "test/client.test.ts": "b357cbe8049dc5f58d98fc3e7f2168e2d94c3c4c4353056794e757cf5b89b2a9",
+    "tsconfig.json": "a31a559ca71e6b0d196fffa84189fbaa4e117b6def7c4f45bd13645fbbfe30b9"
+  }
+}

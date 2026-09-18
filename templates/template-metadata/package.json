@@ -1,0 +1,20 @@
+{
+  "name": "drop-template-metadata",
+  "version": "1.0.0",
+  "description": "Drop metadata provider plugin for importing game details and artwork",
+  "type": "module",
+  "scripts": {
+    "build": "drop-plugin build",
+    "test": "node --test test/index.test.ts",
+    "validate": "drop-plugin validate"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@drop-oss/plugin-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@drop-oss/plugin-cli": "workspace:*",
+    "@types/node": "^26.5.1",
+    "typescript": "^5.7.0"
+  }
+}
